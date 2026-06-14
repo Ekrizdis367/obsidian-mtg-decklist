@@ -2,7 +2,7 @@ import { setIcon } from "obsidian";
 import type MtgDecklistPlugin from "../main";
 import type { ParsedDecklist, RemoteSource } from "../parser/types";
 import { renderCardRow } from "./card-row";
-import { buildResolvedSections, sectionEntryCount, type ResolvedSection } from "./grouping";
+import { buildResolvedSections, sectionEntryCount, type ResolvedEntry, type ResolvedSection } from "./grouping";
 import { colorIdentityViolations } from "./legality";
 import { computeStats, type DeckStats } from "./stats";
 import { renderColorIdentityPips } from "../ui/mana-symbols";
@@ -48,7 +48,10 @@ export function renderDeckView(
 		}
 	}
 
-	const lookup = (name: string) => plugin.client.getCached(name);
+	const lookup = {
+		byName: (name: string) => plugin.client.getCached(name),
+		byPrinting: (set: string, cn: string) => plugin.client.getCachedPrinting(set, cn),
+	};
 
 	const groupingMode = parsed.directives.group ?? plugin.settings.groupingMode;
 	const sortOrder = parsed.directives.sort ?? plugin.settings.cardSortOrder;
@@ -337,14 +340,23 @@ function renderStats(container: HTMLElement, stats: DeckStats, plugin: MtgDeckli
 	}
 }
 
-function collectPendingNames(sections: ResolvedSection[]): string[] {
-	const out = new Set<string>();
+function collectPendingEntries(sections: ResolvedSection[]): ResolvedEntry[] {
+	const out: ResolvedEntry[] = [];
+	const seen = new Set<string>();
 	for (const s of sections) {
 		for (const e of s.entries) {
-			if (!e.card) out.add(e.entry.name);
+			if (e.card) continue;
+			// Dedupe by printing key when present, otherwise by name.
+			const key =
+				e.entry.set && e.entry.collectorNumber
+					? `set:${e.entry.set}:${e.entry.collectorNumber}`
+					: e.entry.name.toLowerCase();
+			if (seen.has(key)) continue;
+			seen.add(key);
+			out.push(e);
 		}
 	}
-	return Array.from(out);
+	return out;
 }
 
 async function triggerAsyncWork(
@@ -358,7 +370,7 @@ async function triggerAsyncWork(
 	const isCancelled = () => (container as ContainerWithToken)[RENDER_TOKEN_PROP] !== token;
 
 	const symbologyMissing = !plugin.symbology.hasAny();
-	const pending = collectPendingNames(sections);
+	const pending = collectPendingEntries(sections);
 	if (!symbologyMissing && pending.length === 0) return;
 
 	let changed = false;
@@ -382,9 +394,13 @@ async function triggerAsyncWork(
 	let successes = 0;
 	const startedAt = Date.now();
 
-	for (const name of pending) {
+	for (const pendingEntry of pending) {
 		if (isCancelled()) return;
-		const card = await plugin.client.fetchCardByName(name);
+		const e = pendingEntry.entry;
+		const card =
+			e.set && e.collectorNumber
+				? await plugin.client.fetchCardBySet(e.set, e.collectorNumber)
+				: await plugin.client.fetchCardByName(e.name);
 		if (isCancelled()) return;
 		attempts++;
 		if (card) {

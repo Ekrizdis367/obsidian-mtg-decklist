@@ -26,6 +26,7 @@ Inline mana symbols and hoverable card links in a regular note:
 - **Card previews** – Hover (desktop) or tap (mobile) any card name for a full Scryfall image preview. On mobile, inline card taps show the preview only; use **Open on Scryfall** in the overlay to open the site (avoids the browser stealing the tap).
 - **Color identity & legality warnings** – Inline icons flag cards that break the deck's color identity or are not legal in your chosen format.
 - **Card role tags** – Manually tag cards with roles like `#ramp`, `#draw`, `#removal`, `#boardwipe`, `#counterspell`, `#wincon` (and your own custom tags) — each shows up as a small coloured icon next to the card name.
+- **Specific printings** – Pin a card to one exact printing with `(SET) NUMBER` syntax (e.g. `1 Ancient Den (MRD) 278`), the same style Moxfield and MTGO exports use — the card and its image preview use that printing.
 - **Deck stats** – Mana curve, cards-by-color pie, and type breakdown rendered under the list.
 - **Commander-aware header** – Detects a `# Commander` section, shows the commander name, the deck's color combo (Azorius, Esper, Witch‑Maw, …), color pips, and total card count.
 - **Sideboard / maybeboard** – `# Sideboard`, `# SB`, `# Maybeboard`, `# Maybe` sections render separately and can start collapsed.
@@ -115,6 +116,7 @@ Each line inside a ` ```decklist ` block is one of:
 | `4 Lightning Bolt` | 4 copies of *Lightning Bolt*. |
 | `1x Lightning Bolt` | The `x` after the quantity is optional. |
 | `1 Sol Ring #ramp` | Tag a card with a role (see [Card role tags](#card-role-tags)). |
+| `1 Ancient Den (MRD) 278` | Request a specific printing by set code and collector number (see [Specific printings](#specific-printings)). |
 | `# Creatures` | A manual section header. |
 | `# Commander` (or `# Commanders`) | Marks the cards under it as the deck's commander(s). |
 | `# Deck` | The default "main deck" section — useful right after `# Commander` to push remaining cards back into the auto-grouped pool. |
@@ -168,6 +170,24 @@ Built-in tags:
 | `utility` | `tech` | wrench | General utility |
 
 Any other `#tag` you invent (e.g. `#tribal-elf`, `#stax`, `#flicker`) will render with a generic tag icon and the tag name as its tooltip — so you can build your own taxonomy without changing the plugin. Tag names are case-insensitive and may contain letters, digits, hyphens, and underscores.
+
+### Specific printings
+
+By default a card is resolved by name and you get whatever printing Scryfall returns. To pin a card to one exact printing, append its set code in parentheses followed by the collector number, in the same `(SET) NUMBER` style Moxfield and MTGO exports use:
+
+```
+1 Ancient Den (MRD) 278
+1 Lightning Bolt (2X2) 117
+1 Brightclimb Pathway (ZNR) 258
+```
+
+The set code is the 3–5 character Scryfall code (case-insensitive); the collector number may include a letter suffix (e.g. `123a`) or a star (`★`). When a printing is specified, the card — including its hover/tap image preview — uses that exact printing rather than Scryfall's default. The specifier is optional and goes **after** the card name but **before** any role `#tag`:
+
+```
+1 Sol Ring (C21) 263 #ramp
+```
+
+Cards without a specifier behave exactly as before, and a specified printing that doesn't exist falls back gracefully (the card simply won't resolve, like any unknown card). Specific printings are cached separately from name lookups, so re-renders stay instant.
 
 ### Per-block directives
 
