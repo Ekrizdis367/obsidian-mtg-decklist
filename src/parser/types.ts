@@ -15,6 +15,10 @@ export interface DecklistEntry {
 	lineNumber: number;
 	tags: string[];
 	hints?: DecklistEntryHints;
+	/** Lowercased Scryfall set code, e.g. "mrd", when a specific printing is requested. */
+	set?: string;
+	/** Collector number for the requested printing, e.g. "278". */
+	collectorNumber?: string;
 }
 
 export interface Section {

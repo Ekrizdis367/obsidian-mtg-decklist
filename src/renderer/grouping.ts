@@ -27,6 +27,27 @@ export interface ResolvedSection {
 	entries: ResolvedEntry[];
 }
 
+/**
+ * Resolve a single entry to a cached card. When the entry names a specific
+ * printing (set + collector number), that printing is preferred; otherwise we
+ * fall back to the default printing resolved by name.
+ */
+export type CardLookup = {
+	byName: (name: string) => ScryfallCard | undefined;
+	byPrinting: (set: string, collectorNumber: string) => ScryfallCard | undefined;
+};
+
+function lookupEntry(entry: DecklistEntry, lookup: CardLookup): ScryfallCard | null {
+	if (entry.set && entry.collectorNumber) {
+		const printing = lookup.byPrinting(entry.set, entry.collectorNumber);
+		if (printing) return printing;
+		// Printing not cached yet — leave unresolved so the async pass fetches it
+		// by set/number rather than silently showing the default printing.
+		return null;
+	}
+	return lookup.byName(entry.name) ?? null;
+}
+
 export function classifyByType(typeLine: string | undefined): string {
 	if (!typeLine) return "Other";
 	const t = typeLine.toLowerCase();
@@ -54,15 +75,15 @@ function shouldUseAuto(parsed: ParsedDecklist, mode: GroupingMode): boolean {
 	return !hasCustomGroups;
 }
 
-function resolveEntries(entries: DecklistEntry[], lookup: (name: string) => ScryfallCard | undefined): ResolvedEntry[] {
-	return entries.map((entry) => ({ entry, card: lookup(entry.name) ?? null }));
+function resolveEntries(entries: DecklistEntry[], lookup: CardLookup): ResolvedEntry[] {
+	return entries.map((entry) => ({ entry, card: lookupEntry(entry, lookup) }));
 }
 
 export function buildResolvedSections(
 	parsed: ParsedDecklist,
 	mode: GroupingMode,
 	sortOrder: CardSortOrder,
-	lookup: (name: string) => ScryfallCard | undefined,
+	lookup: CardLookup,
 ): ResolvedSection[] {
 	const useAuto = shouldUseAuto(parsed, mode);
 
@@ -89,7 +110,7 @@ export function buildResolvedSections(
 
 	for (const section of mainSections) {
 		for (const entry of section.entries) {
-			const card = lookup(entry.name) ?? null;
+			const card = lookupEntry(entry, lookup);
 			const resolved: ResolvedEntry = { entry, card };
 			if (section.kind === "commander") {
 				commanderEntries.push(resolved);

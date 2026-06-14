@@ -100,13 +100,31 @@ function extractTrailingTags(rest: string): { name: string; tags: string[] } {
 	return { name: working.trim(), tags: tags.length > 0 ? [tags[0] as string] : [] };
 }
 
+/**
+ * Pull an optional trailing printing specifier off a card name, in the
+ * Moxfield/MTGO style `(SET) COLLECTOR_NUMBER` — e.g. `Ancient Den (MRD) 278`.
+ * The set code is 3-5 alphanumerics; the collector number may contain a letter
+ * suffix (e.g. `123a`) or star (`★`). Returns the cleaned name plus the parts.
+ */
+function extractSetPrinting(rest: string): { name: string; set?: string; collectorNumber?: string } {
+	const working = rest.trim();
+	const m = working.match(/^(.*\S)\s+\(([A-Za-z0-9]{3,5})\)\s+([0-9]+[A-Za-z★]?)$/);
+	if (!m) return { name: working };
+	return {
+		name: (m[1] ?? "").trim(),
+		set: (m[2] ?? "").toLowerCase(),
+		collectorNumber: (m[3] ?? "").trim(),
+	};
+}
+
 function parseEntryLine(line: string, lineNumber: number): DecklistEntry | DecklistError {
 	const trimmed = line.trim();
 
 	const match = trimmed.match(/^(\d+)\s*[xX]?\s+(.+)$/);
 	if (match) {
 		const quantity = Number.parseInt(match[1] ?? "0", 10);
-		const { name, tags } = extractTrailingTags(match[2] ?? "");
+		const { name: taggedName, tags } = extractTrailingTags(match[2] ?? "");
+		const { name, set, collectorNumber } = extractSetPrinting(taggedName);
 		if (!name) {
 			return {
 				lineNumber,
@@ -120,17 +138,20 @@ function parseEntryLine(line: string, lineNumber: number): DecklistEntry | Deckl
 			rawLine: line,
 			lineNumber,
 			tags,
+			...(set ? { set, collectorNumber } : {}),
 		};
 	}
 
 	if (/^[A-Za-z]/.test(trimmed)) {
-		const { name, tags } = extractTrailingTags(trimmed);
+		const { name: taggedName, tags } = extractTrailingTags(trimmed);
+		const { name, set, collectorNumber } = extractSetPrinting(taggedName);
 		return {
 			quantity: 1,
 			name,
 			rawLine: line,
 			lineNumber,
 			tags,
+			...(set ? { set, collectorNumber } : {}),
 		};
 	}
 

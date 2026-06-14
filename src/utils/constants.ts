@@ -1,5 +1,6 @@
 export const SCRYFALL_API_BASE = "https://api.scryfall.com";
 export const SCRYFALL_NAMED_FUZZY = `${SCRYFALL_API_BASE}/cards/named?fuzzy=`;
+export const SCRYFALL_CARDS_BASE = `${SCRYFALL_API_BASE}/cards`;
 
 export const DECKLIST_BLOCK_LANG = "decklist";
 export const COMBO_BLOCK_LANG = "combo";
