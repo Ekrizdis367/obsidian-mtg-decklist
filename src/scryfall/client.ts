@@ -172,10 +172,10 @@ export class ScryfallClient {
 			if (!card || !card.name) return null;
 
 			// Cache under the printing key so future lookups for this exact
-			// printing are instant, and also under the card name so name-only
-			// references elsewhere can reuse it.
+			// printing are instant. Deliberately NOT cached under the plain card
+			// name: a specific printing must not shadow later name-only lookups,
+			// which should still resolve Scryfall's default printing.
 			this.cache.setByKey(key, card);
-			this.cache.set(card.name, card);
 			return card;
 		} catch (err) {
 			console.warn("[mtg-decklist] Scryfall printing request failed", `${set}/${collectorNumber}`, err);
