@@ -19,7 +19,8 @@ export class SymbologyClient {
 
 	constructor(initial?: Record<string, ScryfallSymbol>) {
 		if (initial) {
-			for (const [key, sym] of Object.entries(initial)) {
+			for (const key of Object.keys(initial)) {
+				const sym = initial[key];
 				if (sym?.svg_uri) this.map.set(key, sym);
 			}
 		}

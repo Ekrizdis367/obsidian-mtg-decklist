@@ -29,6 +29,19 @@ export interface RenderDeckOptions {
 	onRefresh?: () => void;
 }
 
+function collectMainDeckCards(sections: ResolvedSection[]): ScryfallCard[] {
+	const cards: ScryfallCard[] = [];
+	for (const section of sections) {
+		if (section.kind === "sideboard" || section.kind === "maybeboard" || section.kind === "commander") {
+			continue;
+		}
+		for (const entry of section.entries) {
+			if (entry.card) cards.push(entry.card);
+		}
+	}
+	return cards;
+}
+
 export function renderDeckView(
 	parsed: ParsedDecklist,
 	container: HTMLElement,
@@ -61,14 +74,10 @@ export function renderDeckView(
 
 	const violations = commanderCard
 		? new Map(
-				colorIdentityViolations(
-					commanderCard,
-					sections.flatMap((s) =>
-						s.kind === "sideboard" || s.kind === "maybeboard" || s.kind === "commander"
-							? []
-							: s.entries.map((e) => e.card).filter((c): c is ScryfallCard => c !== null),
-					),
-				).map((v) => [v.card.id, v.offending]),
+				colorIdentityViolations(commanderCard, collectMainDeckCards(sections)).map((v) => [
+					v.card.id,
+					v.offending,
+				]),
 			)
 		: new Map<string, string[]>();
 

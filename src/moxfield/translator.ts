@@ -112,7 +112,9 @@ export function translateMoxfieldDeck(deck: MoxfieldDeck): ParsedDecklist {
 function boardToEntries(board: MoxfieldBoard | undefined, nextLine: () => number): DecklistEntry[] {
 	if (!board || !board.cards) return [];
 	const entries: DecklistEntry[] = [];
-	for (const item of Object.values(board.cards)) {
+	for (const key of Object.keys(board.cards)) {
+		const item = board.cards[key];
+		if (!item) continue;
 		const entry = boardCardToEntry(item, nextLine);
 		if (entry) entries.push(entry);
 	}

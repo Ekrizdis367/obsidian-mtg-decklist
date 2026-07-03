@@ -128,20 +128,20 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 	if (!card) return;
 
 	if (useTouchCardUi()) {
-		const onRowTap = (e: Event) => {
+		const onRowTap: EventListener = (e) => {
 			if ((e.target as HTMLElement | null)?.closest("a.mtg-card-link")) return;
 			opts.preview.show(card, row, opts.imageQuality);
 		};
 		row.addClass("mtg-card-row-tappable");
-		opts.registerDom(row, "click", onRowTap as EventListener);
+		opts.registerDom(row, "click", onRowTap);
 	} else {
 		const debounced = debounce(() => opts.preview.show(card, row, opts.imageQuality), opts.hoverDelayMs);
-		const onEnter = () => debounced.call();
-		const onLeave = () => {
+		const onEnter: EventListener = () => debounced.call();
+		const onLeave: EventListener = () => {
 			debounced.cancel();
 			opts.preview.hide();
 		};
-		opts.registerDom(row, "mouseenter", onEnter as EventListener);
-		opts.registerDom(row, "mouseleave", onLeave as EventListener);
+		opts.registerDom(row, "mouseenter", onEnter);
+		opts.registerDom(row, "mouseleave", onLeave);
 	}
 }

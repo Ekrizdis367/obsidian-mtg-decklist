@@ -13,7 +13,11 @@ export class MoxfieldClient {
 	private dirty = false;
 
 	constructor(initial: Record<string, CachedMoxfieldDeck> = {}) {
-		this.cache = new Map(Object.entries(initial));
+		this.cache = new Map();
+		for (const key of Object.keys(initial)) {
+			const entry = initial[key];
+			if (entry) this.cache.set(key, entry);
+		}
 	}
 
 	getCached(publicId: string): CachedMoxfieldDeck | undefined {

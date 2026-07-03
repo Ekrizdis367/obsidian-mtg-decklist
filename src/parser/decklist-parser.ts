@@ -94,10 +94,13 @@ function extractTrailingTags(rest: string): { name: string; tags: string[] } {
 	while (true) {
 		const m = working.match(tokenRe);
 		if (!m) break;
-		tags.unshift((m[1] ?? "").toLowerCase());
-		working = working.slice(0, m.index).trimEnd();
+		const tag = m[1];
+		if (tag) tags.unshift(tag.toLowerCase());
+		const index = m.index;
+		if (index === undefined) break;
+		working = working.slice(0, index).trimEnd();
 	}
-	return { name: working.trim(), tags: tags.length > 0 ? [tags[0] as string] : [] };
+	return { name: working.trim(), tags: tags.length > 0 && tags[0] !== undefined ? [tags[0]] : [] };
 }
 
 /**

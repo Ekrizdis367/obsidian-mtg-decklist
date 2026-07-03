@@ -21,7 +21,8 @@ export class CardCache {
 
 	constructor(initial?: Record<string, CachedCardEntry>) {
 		if (initial) {
-			for (const [key, entry] of Object.entries(initial)) {
+			for (const key of Object.keys(initial)) {
+				const entry = initial[key];
 				if (entry?.card) {
 					this.map.set(key, entry);
 				}
