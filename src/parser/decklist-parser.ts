@@ -98,7 +98,7 @@ function extractTrailingTags(rest: string): { name: string; tags: string[] } {
 		if (tag) tags.unshift(tag.toLowerCase());
 		const index = m.index;
 		if (index === undefined) break;
-		working = working.slice(0, index).trimEnd();
+		working = working.slice(0, index).replace(/\s+$/, "");
 	}
 	return { name: working.trim(), tags: tags.length > 0 && tags[0] !== undefined ? [tags[0]] : [] };
 }
