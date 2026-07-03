@@ -8,6 +8,7 @@ import { computeStats, type DeckStats } from "./stats";
 import { renderColorIdentityPips } from "../ui/mana-symbols";
 import { colorComboName } from "../utils/color-names";
 import { moxfieldDeckUrl } from "../moxfield/url";
+import { printingKey } from "../scryfall/cache";
 import type { ScryfallCard } from "../scryfall/types";
 
 const COLOR_ORDER = ["W", "U", "B", "R", "G"];
@@ -349,7 +350,7 @@ function collectPendingEntries(sections: ResolvedSection[]): ResolvedEntry[] {
 			// Dedupe by printing key when present, otherwise by name.
 			const key =
 				e.entry.set && e.entry.collectorNumber
-					? `set:${e.entry.set}:${e.entry.collectorNumber}`
+					? printingKey(e.entry.set, e.entry.collectorNumber)
 					: e.entry.name.toLowerCase();
 			if (seen.has(key)) continue;
 			seen.add(key);
