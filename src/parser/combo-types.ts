@@ -8,6 +8,11 @@ export type ComboSectionKey =
 	| "interact"
 	| "notes";
 
+export interface ComboLoopSegment {
+	loop: string[];
+	breaks: string[];
+}
+
 export interface ComboLine {
 	name: string;
 	infinite?: boolean;
@@ -15,8 +20,7 @@ export interface ComboLine {
 	hand: string[];
 	prerequisites: string[];
 	steps: string[];
-	loop: string[];
-	breaks: string[];
+	loops: ComboLoopSegment[];
 	notes: string[];
 }
 
@@ -28,8 +32,7 @@ export interface ParsedCombo {
 	hand: string[];
 	prerequisites: string[];
 	steps: string[];
-	loop: string[];
-	breaks: string[];
+	loops: ComboLoopSegment[];
 	interact: string[];
 	notes: string[];
 	lines: ComboLine[];

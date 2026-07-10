@@ -1,4 +1,4 @@
-import type { ComboLine, ParsedCombo } from "./combo-types";
+import type { ComboLine, ComboLoopSegment, ParsedCombo } from "./combo-types";
 
 const SCALAR_KEYS = new Set(["name", "result"]);
 
@@ -7,8 +7,6 @@ const LIST_KEYS = new Set([
 	"hand",
 	"prerequisites",
 	"steps",
-	"loop",
-	"break",
 	"interact",
 	"notes",
 ]);
@@ -19,8 +17,6 @@ const LINE_LIST_KEYS = new Set([
 	"hand",
 	"prerequisites",
 	"steps",
-	"loop",
-	"break",
 	"notes",
 ]);
 
@@ -60,6 +56,10 @@ const KEY_ALIASES: Record<string, string> = {
 	infinity: "infinite",
 };
 
+interface LoopSegmentContainer {
+	loops: ComboLoopSegment[];
+}
+
 function parseInfiniteFlag(value: string): boolean {
 	const v = value.trim().toLowerCase();
 	if (!v) return true;
@@ -74,10 +74,24 @@ function newLine(name: string): ComboLine {
 		hand: [],
 		prerequisites: [],
 		steps: [],
-		loop: [],
-		breaks: [],
+		loops: [],
 		notes: [],
 	};
+}
+
+function startLoopSegment(container: LoopSegmentContainer): string[] {
+	const seg: ComboLoopSegment = { loop: [], breaks: [] };
+	container.loops.push(seg);
+	return seg.loop;
+}
+
+function breaksListForCurrentSegment(container: LoopSegmentContainer): string[] {
+	let seg = container.loops[container.loops.length - 1];
+	if (!seg) {
+		seg = { loop: [], breaks: [] };
+		container.loops.push(seg);
+	}
+	return seg.breaks;
 }
 
 export function parseCombo(source: string): ParsedCombo {
@@ -88,8 +102,7 @@ export function parseCombo(source: string): ParsedCombo {
 		hand: [],
 		prerequisites: [],
 		steps: [],
-		loop: [],
-		breaks: [],
+		loops: [],
 		interact: [],
 		notes: [],
 		lines: [],
@@ -100,6 +113,8 @@ export function parseCombo(source: string): ParsedCombo {
 	let currentList: string[] | null = null;
 	let currentKey: string | null = null;
 	let currentLine: ComboLine | null = null;
+
+	const loopContainer = (): LoopSegmentContainer => currentLine ?? combo;
 
 	const targetListFor = (key: string): string[] | null => {
 		if (currentLine && LINE_LIST_KEYS.has(key)) {
@@ -180,6 +195,20 @@ export function parseCombo(source: string): ParsedCombo {
 			continue;
 		}
 
+		if (key === "loop") {
+			currentKey = "loop";
+			currentList = startLoopSegment(loopContainer());
+			if (value) currentList.push(value);
+			continue;
+		}
+
+		if (key === "break") {
+			currentKey = "break";
+			currentList = breaksListForCurrentSegment(loopContainer());
+			if (value) currentList.push(value);
+			continue;
+		}
+
 		if (LIST_KEYS.has(key)) {
 			currentKey = key;
 			currentList = targetListFor(key);
@@ -205,10 +234,6 @@ function mainListForCombo(combo: ParsedCombo, key: string): string[] | null {
 			return combo.prerequisites;
 		case "steps":
 			return combo.steps;
-		case "loop":
-			return combo.loop;
-		case "break":
-			return combo.breaks;
 		case "interact":
 			return combo.interact;
 		case "notes":
@@ -228,10 +253,6 @@ function mainListForLine(line: ComboLine, key: string): string[] | null {
 			return line.prerequisites;
 		case "steps":
 			return line.steps;
-		case "loop":
-			return line.loop;
-		case "break":
-			return line.breaks;
 		case "notes":
 			return line.notes;
 		default:

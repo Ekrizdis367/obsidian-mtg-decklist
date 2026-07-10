@@ -320,8 +320,8 @@ notes:
 | `hand` | list | Cards needed in hand (or library, graveyard, etc.) to assemble the combo. |
 | `prerequisites` | list | Other conditions (mana available, life total, graveyard size, …). |
 | `steps` | list | A linear sequence (rendered as a numbered list). |
-| `loop` | list | A cyclical sequence (rendered as a flow diagram). |
-| `break` | list | Ways to exit the loop on purpose. |
+| `loop` | list | A cyclical sequence (rendered as a flow diagram). Repeat `loop:` to start a **separate** loop diagram — each pairs with any `break:` items that follow until the next `loop:`. |
+| `break` | list | Ways to exit the loop on purpose. Applies to the most recent `loop:` block. |
 | `interact` | list | How an opponent can disrupt the combo. |
 | `notes` | list | Extra context. |
 | `line` | header | Optional. Starts a new variant — see [Combo lines / variants](#combo-lines--variants) below. |

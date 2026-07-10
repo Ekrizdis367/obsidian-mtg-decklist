@@ -1,7 +1,7 @@
 import { MarkdownPostProcessorContext } from "obsidian";
 import type MtgDecklistPlugin from "../main";
 import { parseCombo } from "../parser/combo-parser";
-import type { ComboLine, ParsedCombo } from "../parser/combo-types";
+import type { ComboLine, ComboLoopSegment, ParsedCombo } from "../parser/combo-types";
 import { renderManaCost } from "../ui/mana-symbols";
 import { createInlineCardLink } from "./inline-processor";
 
@@ -67,12 +67,8 @@ export function renderComboView(combo: ParsedCombo, container: HTMLElement, plug
 		renderListSection(body, "Steps", stepsCls, combo.steps, plugin, "ordered");
 	}
 
-	if (combo.loop.length > 0) {
-		renderLoopSection(body, combo.loop, combo.breaks, plugin);
-	}
-
-	if (combo.loop.length === 0 && combo.breaks.length > 0) {
-		renderListSection(body, "Break", "mtg-combo-section-break", combo.breaks, plugin, "•");
+	if (combo.loops.length > 0) {
+		renderLoopSegments(body, combo.loops, plugin);
 	}
 
 	if (combo.interact.length > 0) {
@@ -152,10 +148,8 @@ function renderLineCard(
 	if (line.steps.length > 0) {
 		renderSubsection(body, "Steps", "mtg-combo-subsection-steps", line.steps, plugin, "ordered");
 	}
-	if (line.loop.length > 0) {
-		renderLoopSection(body, line.loop, line.breaks, plugin);
-	} else if (line.breaks.length > 0) {
-		renderListSection(body, "Break", "mtg-combo-section-break", line.breaks, plugin, "•");
+	if (line.loops.length > 0) {
+		renderLoopSegments(body, line.loops, plugin);
 	}
 	if (line.notes.length > 0) {
 		renderSubsection(body, "Notes", "mtg-combo-subsection-notes", line.notes, plugin);
@@ -179,6 +173,20 @@ function renderListSection(
 	for (const item of items) {
 		const li = list.createEl("li", { cls: "mtg-combo-item" });
 		renderRichText(li, item, plugin);
+	}
+}
+
+function renderLoopSegments(
+	parent: HTMLElement,
+	segments: ComboLoopSegment[],
+	plugin: MtgDecklistPlugin,
+): void {
+	for (const seg of segments) {
+		if (seg.loop.length > 0) {
+			renderLoopSection(parent, seg.loop, seg.breaks, plugin);
+		} else if (seg.breaks.length > 0) {
+			renderListSection(parent, "Break", "mtg-combo-section-break", seg.breaks, plugin, "•");
+		}
 	}
 }
 
