@@ -40,11 +40,17 @@ jobs:
                       main.js
                       styles.css
 
-            - name: Create GitHub release
+            - name: Create or update GitHub release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  gh release create "${GITHUB_REF_NAME}" \
-                    --title="${GITHUB_REF_NAME}" \
-                    --generate-notes \
-                    main.js manifest.json styles.css
+                  ASSETS="main.js manifest.json styles.css"
+                  if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+                    echo "Release ${GITHUB_REF_NAME} already exists; uploading CI-built assets."
+                    gh release upload "${GITHUB_REF_NAME}" ${ASSETS} --clobber
+                  else
+                    gh release create "${GITHUB_REF_NAME}" \
+                      --title="${GITHUB_REF_NAME}" \
+                      --generate-notes \
+                      ${ASSETS}
+                  fi
