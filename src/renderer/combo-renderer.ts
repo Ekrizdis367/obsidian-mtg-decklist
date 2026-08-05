@@ -265,29 +265,32 @@ function scheduleArcLayout(wrap: HTMLElement, arc: SVGSVGElement, stepEls: HTMLE
 
 		while (arc.firstChild) arc.removeChild(arc.firstChild);
 
-		const defs = activeDocument.createElementNS("http://www.w3.org/2000/svg", "defs");
-		const marker = activeDocument.createElementNS("http://www.w3.org/2000/svg", "marker");
-		marker.setAttribute("id", markerId);
-		marker.setAttribute("viewBox", "0 0 10 10");
-		marker.setAttribute("refX", "8");
-		marker.setAttribute("refY", "5");
-		marker.setAttribute("markerWidth", "6");
-		marker.setAttribute("markerHeight", "6");
-		marker.setAttribute("orient", "auto-start-reverse");
-		const tri = activeDocument.createElementNS("http://www.w3.org/2000/svg", "path");
-		tri.setAttribute("d", "M0,0 L10,5 L0,10 z");
-		tri.setAttribute("class", "mtg-combo-loop-arrow-head");
-		marker.appendChild(tri);
-		defs.appendChild(marker);
-		arc.appendChild(defs);
+		const defs = arc.createSvg("defs");
+		const marker = defs.createSvg("marker", {
+			attr: {
+				id: markerId,
+				viewBox: "0 0 10 10",
+				refX: "8",
+				refY: "5",
+				markerWidth: "6",
+				markerHeight: "6",
+				orient: "auto-start-reverse",
+			},
+		});
+		marker.createSvg("path", {
+			cls: "mtg-combo-loop-arrow-head",
+			attr: { d: "M0,0 L10,5 L0,10 z" },
+		});
 
-		const path = activeDocument.createElementNS("http://www.w3.org/2000/svg", "path");
 		const d = `M ${startX} ${endY} C ${farX} ${endY - cpOffset}, ${farX} ${startY + cpOffset}, ${startX} ${startY}`;
-		path.setAttribute("d", d);
-		path.setAttribute("fill", "none");
-		path.setAttribute("class", "mtg-combo-loop-arc-path");
-		path.setAttribute("marker-end", `url(#${markerId})`);
-		arc.appendChild(path);
+		arc.createSvg("path", {
+			cls: "mtg-combo-loop-arc-path",
+			attr: {
+				d,
+				fill: "none",
+				"marker-end": `url(#${markerId})`,
+			},
+		});
 	};
 
 	window.requestAnimationFrame(() => window.requestAnimationFrame(draw));
@@ -361,16 +364,14 @@ function renderManaInto(container: HTMLElement, text: string, plugin: MtgDecklis
 	let foundAny = false;
 	while ((m = MANA_TOKEN_RE.exec(text)) !== null) {
 		foundAny = true;
-		if (m.index > last) container.appendChild(activeDocument.createTextNode(text.slice(last, m.index)));
-		const wrapper = activeDocument.createElement("span");
-		wrapper.className = "mtg-inline-mana";
+		if (m.index > last) container.appendText(text.slice(last, m.index));
+		const wrapper = container.createSpan({ cls: "mtg-inline-mana" });
 		renderManaCost(wrapper, `{${m[1]}}`, plugin.symbology);
-		container.appendChild(wrapper);
 		last = m.index + m[0].length;
 	}
 	if (!foundAny) {
-		container.appendChild(activeDocument.createTextNode(text));
+		container.appendText(text);
 	} else if (last < text.length) {
-		container.appendChild(activeDocument.createTextNode(text.slice(last)));
+		container.appendText(text.slice(last));
 	}
 }

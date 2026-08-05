@@ -10,6 +10,11 @@ export default tseslint.config(
 				...globals.browser,
 				activeDocument: "readonly",
 				activeWindow: "readonly",
+				createEl: "readonly",
+				createDiv: "readonly",
+				createSpan: "readonly",
+				createSvg: "readonly",
+				createFragment: "readonly",
 			},
 			parserOptions: {
 				projectService: {

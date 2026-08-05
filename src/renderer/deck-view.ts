@@ -467,18 +467,13 @@ interface CardLoadingBanner {
 }
 
 function renderCardLoadingBanner(container: HTMLElement, total: number): CardLoadingBanner {
-	const root = activeDocument.createElement("div");
-	root.className = "mtg-decklist-card-loading";
-
-	const spinner = activeDocument.createElement("span");
-	spinner.className = "mtg-decklist-loading-spinner";
+	const root = createDiv({ cls: "mtg-decklist-card-loading" });
+	const spinner = root.createSpan({ cls: "mtg-decklist-loading-spinner" });
 	setIcon(spinner, "loader-2");
-	root.appendChild(spinner);
-
-	const label = activeDocument.createElement("span");
-	label.className = "mtg-decklist-card-loading-label";
-	label.textContent = `Loading 0 / ${total} cards…`;
-	root.appendChild(label);
+	const label = root.createSpan({
+		cls: "mtg-decklist-card-loading-label",
+		text: `Loading 0 / ${total} cards…`,
+	});
 
 	const header = container.querySelector(".mtg-decklist-header");
 	if (header && header.parentElement === container) {

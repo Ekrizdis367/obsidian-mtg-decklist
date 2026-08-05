@@ -57,26 +57,24 @@ function isSkippedAncestor(el: HTMLElement): boolean {
 
 function replaceTextNodeWithMana(node: Text, plugin: MtgDecklistPlugin): void {
 	const value = node.nodeValue ?? "";
-	const frag = activeDocument.createDocumentFragment();
+	const frag = createFragment();
 	let lastIndex = 0;
 
 	MANA_TOKEN_RE.lastIndex = 0;
 	let m: RegExpExecArray | null;
 	while ((m = MANA_TOKEN_RE.exec(value)) !== null) {
 		if (m.index > lastIndex) {
-			frag.appendChild(activeDocument.createTextNode(value.slice(lastIndex, m.index)));
+			frag.appendText(value.slice(lastIndex, m.index));
 		}
-		const wrapper = activeDocument.createElement("span");
-		wrapper.className = "mtg-inline-mana";
+		const wrapper = frag.createSpan({ cls: "mtg-inline-mana" });
 		renderManaCost(wrapper, `{${m[1]}}`, plugin.symbology);
-		frag.appendChild(wrapper);
 		lastIndex = m.index + m[0].length;
 	}
 
 	if (lastIndex === 0) return;
 
 	if (lastIndex < value.length) {
-		frag.appendChild(activeDocument.createTextNode(value.slice(lastIndex)));
+		frag.appendText(value.slice(lastIndex));
 	}
 	node.replaceWith(frag);
 }
@@ -119,12 +117,12 @@ export function createInlineCardLink(
 	displayText: string | undefined,
 	plugin: MtgDecklistPlugin,
 ): HTMLAnchorElement {
-	const anchor = activeDocument.createElement("a");
-	anchor.className = "mtg-inline-card";
-	anchor.textContent = displayText ?? cardName;
+	const anchor = createEl("a", {
+		cls: "mtg-inline-card",
+		text: displayText ?? cardName,
+		attr: { href: "#", rel: "noopener" },
+	});
 	anchor.dataset.cardName = cardName;
-	anchor.setAttribute("href", "#");
-	anchor.setAttribute("rel", "noopener");
 	attachCardBehavior(anchor, cardName, plugin);
 	return anchor;
 }

@@ -53,7 +53,7 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const plugin = this.plugin;
 
-		const cardLinkDesc = activeDocument.createDocumentFragment();
+		const cardLinkDesc = createFragment();
 		cardLinkDesc.appendText("Render `mtg:Card Name` and [Display](mtg:Card Name) as hoverable card links. ");
 		cardLinkDesc.createEl("strong", { text: "Tip: " });
 		cardLinkDesc.appendText(
