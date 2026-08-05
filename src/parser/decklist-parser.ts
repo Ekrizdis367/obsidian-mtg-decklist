@@ -13,6 +13,17 @@ export const DEFAULT_SECTION_TITLE = "Deck";
 
 const VALID_GROUP_VALUES = new Set<DecklistDirectives["group"]>(["auto", "manual", "respect-manual"]);
 const VALID_SORT_VALUES = new Set<DecklistDirectives["sort"]>(["name", "cmc-name", "source"]);
+const VALID_LEGALITY_VALUES = new Set<DecklistDirectives["legality"]>([
+	"off",
+	"standard",
+	"pioneer",
+	"modern",
+	"legacy",
+	"vintage",
+	"pauper",
+	"commander",
+	"brawl",
+]);
 
 interface DirectiveContext {
 	directives: DecklistDirectives;
@@ -49,6 +60,12 @@ function applyDirective(
 		const v = value === "cmc" ? "cmc-name" : value;
 		if (VALID_SORT_VALUES.has(v as DecklistDirectives["sort"])) {
 			ctx.directives.sort = v as DecklistDirectives["sort"];
+			return true;
+		}
+	}
+	if (key === "legality" || key === "format") {
+		if (VALID_LEGALITY_VALUES.has(value as DecklistDirectives["legality"])) {
+			ctx.directives.legality = value as DecklistDirectives["legality"];
 			return true;
 		}
 	}

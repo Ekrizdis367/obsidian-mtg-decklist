@@ -10,6 +10,7 @@ import { colorComboName } from "../utils/color-names";
 import { moxfieldDeckUrl } from "../moxfield/url";
 import { printingKey } from "../scryfall/cache";
 import type { ScryfallCard } from "../scryfall/types";
+import type { LegalityFormat } from "../settings";
 
 const COLOR_ORDER = ["W", "U", "B", "R", "G"];
 
@@ -69,20 +70,22 @@ export function renderDeckView(
 
 	const groupingMode = parsed.directives.group ?? plugin.settings.groupingMode;
 	const sortOrder = parsed.directives.sort ?? plugin.settings.cardSortOrder;
+	const legalityFormat: LegalityFormat = parsed.directives.legality ?? plugin.settings.legalityFormat;
 	const sections = buildResolvedSections(parsed, groupingMode, sortOrder, lookup);
-	const commanderCard = findCommanderCard(sections);
+	const commanderCards = collectCommanderCards(sections);
+	const deckColorIdentity = computeDeckColorIdentity(sections, commanderCards);
+	const isCommanderDeck = commanderCards.length > 0;
 
-	const violations = commanderCard
-		? new Map(
-				colorIdentityViolations(commanderCard, collectMainDeckCards(sections)).map((v) => [
-					v.card.id,
-					v.offending,
-				]),
-			)
-		: new Map<string, string[]>();
+	const violations =
+		isCommanderDeck && legalityFormat !== "off"
+			? new Map(
+					colorIdentityViolations(deckColorIdentity, collectMainDeckCards(sections)).map((v) => [
+						v.card.id,
+						v.offending,
+					]),
+				)
+			: new Map<string, string[]>();
 
-	const deckColorIdentity = computeDeckColorIdentity(sections, commanderCard);
-	const isCommanderDeck = !!commanderCard;
 	for (const c of deckColorIdentity) {
 		container.addClass(`mtg-decklist-ci-${c.toLowerCase()}`);
 	}
@@ -101,7 +104,7 @@ export function renderDeckView(
 	const col1 = body.createDiv({ cls: "mtg-decklist-column" });
 	const col2 = body.createDiv({ cls: "mtg-decklist-column" });
 	sections.forEach((section, i) => {
-		renderSection(i < splitAt ? col1 : col2, section, plugin, violations, isCommanderDeck);
+		renderSection(i < splitAt ? col1 : col2, section, plugin, violations, isCommanderDeck, legalityFormat);
 	});
 
 	if (plugin.settings.showStats) {
@@ -178,10 +181,14 @@ function renderRemoteControls(parent: HTMLElement, options: RenderDeckOptions): 
 	}
 }
 
-function findCommanderCard(sections: ResolvedSection[]): ScryfallCard | undefined {
+function collectCommanderCards(sections: ResolvedSection[]): ScryfallCard[] {
 	const commanderSection = sections.find((s) => s.kind === "commander");
-	const card = commanderSection?.entries.find((e) => e.card)?.card;
-	return card ?? undefined;
+	if (!commanderSection) return [];
+	const cards: ScryfallCard[] = [];
+	for (const { card } of commanderSection.entries) {
+		if (card) cards.push(card);
+	}
+	return cards;
 }
 
 function collectCommanderNames(sections: ResolvedSection[]): string[] {
@@ -190,10 +197,20 @@ function collectCommanderNames(sections: ResolvedSection[]): string[] {
 	return commanderSection.entries.map(({ entry, card }) => card?.name ?? entry.name);
 }
 
-function computeDeckColorIdentity(sections: ResolvedSection[], commander?: ScryfallCard): string[] {
-	if (commander?.color_identity && commander.color_identity.length >= 0) {
-		const cmdr = (commander.color_identity ?? []).map((c) => c.toUpperCase());
-		if (cmdr.length > 0) return COLOR_ORDER.filter((c) => cmdr.includes(c));
+function unionColorIdentity(cards: ScryfallCard[]): string[] {
+	const set = new Set<string>();
+	for (const card of cards) {
+		for (const c of card.color_identity ?? []) {
+			const upper = c.toUpperCase();
+			if (COLOR_ORDER.includes(upper)) set.add(upper);
+		}
+	}
+	return COLOR_ORDER.filter((c) => set.has(c));
+}
+
+function computeDeckColorIdentity(sections: ResolvedSection[], commanders: ScryfallCard[]): string[] {
+	if (commanders.length > 0) {
+		return unionColorIdentity(commanders);
 	}
 	const set = new Set<string>();
 	for (const section of sections) {
@@ -231,6 +248,7 @@ function renderSection(
 	plugin: MtgDecklistPlugin,
 	violations: Map<string, string[]>,
 	isCommanderDeck: boolean,
+	legalityFormat: LegalityFormat,
 ): void {
 	const sectionEl = parent.createDiv({ cls: `mtg-section mtg-section-${section.kind}` });
 	if (isLandSection(section)) sectionEl.addClass("mtg-section-lands");
@@ -251,7 +269,7 @@ function renderSection(
 			symbology: plugin.symbology,
 			hoverDelayMs: plugin.settings.hoverDelayMs,
 			imageQuality: plugin.settings.imageQuality,
-			legalityFormat: plugin.settings.legalityFormat,
+			legalityFormat,
 			colorIdentityViolation: resolved.card ? violations.get(resolved.card.id) : undefined,
 			isCommanderDeck,
 			registerDom: (target, type, listener) =>

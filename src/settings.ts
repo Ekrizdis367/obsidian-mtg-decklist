@@ -174,7 +174,7 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 					},
 					{
 						name: "Legality warnings",
-						desc: "Warn when cards are not legal in the selected format.",
+						desc: "Warn when cards are not legal in the selected format, and (for commander decks) when cards are outside the commanders' color identity. Override per block with a legality: directive.",
 						render: (setting) => {
 							setting.addDropdown((dd) =>
 								dd

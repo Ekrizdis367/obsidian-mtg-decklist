@@ -18,14 +18,15 @@ export function legalityNote(card: ScryfallCard, format: LegalityFormat): string
 }
 
 export function colorIdentityViolations(
-	commander: ScryfallCard | undefined,
+	allowedColors: Iterable<string>,
 	cards: ScryfallCard[],
 ): { card: ScryfallCard; offending: string[] }[] {
-	if (!commander) return [];
-	const allowed = new Set(commander.color_identity ?? []);
+	const allowed = new Set(Array.from(allowedColors, (c) => c.toUpperCase()));
 	const violations: { card: ScryfallCard; offending: string[] }[] = [];
 	for (const card of cards) {
-		const offending = (card.color_identity ?? []).filter((c) => !allowed.has(c));
+		const offending = (card.color_identity ?? [])
+			.map((c) => c.toUpperCase())
+			.filter((c) => !allowed.has(c));
 		if (offending.length > 0) {
 			violations.push({ card, offending });
 		}

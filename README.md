@@ -197,6 +197,7 @@ You can put directives at the very top of a block (before any cards or headers) 
 ```decklist
 group: auto
 sort: cmc-name
+legality: commander
 
 1 Lightning Bolt
 1 Counterspell
@@ -210,7 +211,10 @@ Supported keys:
 | --- | --- |
 | `group` (or `grouping`) | `auto`, `manual`, `respect-manual` |
 | `sort` | `name`, `cmc-name`, `source` |
+| `legality` (or `format`) | `off`, `standard`, `pioneer`, `modern`, `legacy`, `vintage`, `pauper`, `commander`, `brawl` |
 | `moxfield` (or `source`) | A Moxfield deck URL or public deck ID — see [Loading from Moxfield](#loading-from-moxfield). |
+
+When `legality` is set (and not `off`), commander decks also warn on cards outside the combined color identity of every card in the `# Commander` section — including partner pairs.
 
 ## Loading from Moxfield
 
@@ -406,7 +410,7 @@ Available under **Settings → Community plugins → MTG Decklist**:
 - **Hover delay (ms)** – Delay before previews appear on desktop hover.
 - **Collapse sideboard by default** – Sideboard and maybeboard sections start collapsed.
 - **Show deck stats** – Toggle the mana curve / colors / types panel below decklists.
-- **Legality warnings** – Flag cards that aren't legal in `Standard`, `Pioneer`, `Modern`, `Legacy`, `Vintage`, `Pauper`, `Commander`, or `Brawl`.
+- **Legality warnings** – Flag cards that aren't legal in `Standard`, `Pioneer`, `Modern`, `Legacy`, `Vintage`, `Pauper`, `Commander`, or `Brawl`. For commander decks, also flags cards outside the commanders' combined color identity. Override per block with `legality:`.
 - **Render inline mana symbols** – Toggle inline `{R}`-style replacement.
 - **Render inline card links** – Toggle inline `mtg:` link rendering.
 - **Moxfield cache lifetime (minutes)** – How long fetched Moxfield decks stay cached before being refetched (default 6 hours).
