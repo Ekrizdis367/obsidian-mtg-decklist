@@ -8,6 +8,7 @@ import { computeStats, type DeckStats } from "./stats";
 import { renderColorIdentityPips } from "../ui/mana-symbols";
 import { colorComboName } from "../utils/color-names";
 import { moxfieldDeckUrl } from "../moxfield/url";
+import { archidektDeckUrl } from "../archidekt/url";
 import { printingKey } from "../scryfall/cache";
 import type { ScryfallCard } from "../scryfall/types";
 import type { LegalityFormat } from "../settings";
@@ -158,15 +159,17 @@ function renderHeader(
 function renderRemoteControls(parent: HTMLElement, options: RenderDeckOptions): void {
 	const controls = parent.createDiv({ cls: "mtg-decklist-remote-controls" });
 
-	if (options.remoteSource && options.remoteSource.kind === "moxfield") {
+	if (options.remoteSource) {
+		const isArchidekt = options.remoteSource.kind === "archidekt";
+		const label = isArchidekt ? "Archidekt" : "Moxfield";
 		const link = controls.createEl("a", {
 			cls: "mtg-decklist-remote-source",
-			href: moxfieldDeckUrl(options.remoteSource.id),
-			text: "Moxfield",
+			href: isArchidekt ? archidektDeckUrl(options.remoteSource.id) : moxfieldDeckUrl(options.remoteSource.id),
+			text: label,
 		});
 		link.setAttribute("target", "_blank");
 		link.setAttribute("rel", "noopener");
-		link.setAttribute("title", "Moxfield: open this deck");
+		link.setAttribute("title", `${label}: open this deck`);
 	}
 
 	if (options.onRefresh) {

@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type MtgDecklistPlugin from "./main";
-import { MOXFIELD_DEFAULT_TTL_MINUTES } from "./utils/constants";
+import { ARCHIDEKT_DEFAULT_TTL_MINUTES, MOXFIELD_DEFAULT_TTL_MINUTES } from "./utils/constants";
 
 export type GroupingMode = "auto" | "manual" | "respect-manual";
 export type CardSortOrder = "source" | "name" | "cmc-name";
@@ -27,6 +27,7 @@ export interface MtgDecklistSettings {
 	inlineManaSymbols: boolean;
 	inlineCardLinks: boolean;
 	moxfieldCacheTtlMinutes: number;
+	archidektCacheTtlMinutes: number;
 }
 
 export const DEFAULT_SETTINGS: MtgDecklistSettings = {
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: MtgDecklistSettings = {
 	inlineManaSymbols: true,
 	inlineCardLinks: true,
 	moxfieldCacheTtlMinutes: MOXFIELD_DEFAULT_TTL_MINUTES,
+	archidektCacheTtlMinutes: ARCHIDEKT_DEFAULT_TTL_MINUTES,
 };
 
 export class MtgDecklistSettingTab extends PluginSettingTab {
@@ -249,6 +251,24 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 							);
 						},
 					},
+					{
+						name: "Archidekt cache lifetime (minutes)",
+						desc: "Archidekt decks are cached for this long before being refetched. Use the refresh button on a deck to force a refresh sooner.",
+						render: (setting) => {
+							setting.addText((text) =>
+								text
+									.setPlaceholder(`${ARCHIDEKT_DEFAULT_TTL_MINUTES}`)
+									.setValue(String(plugin.settings.archidektCacheTtlMinutes))
+									.onChange(async (value) => {
+										const n = Number.parseInt(value, 10);
+										if (Number.isFinite(n) && n >= 1 && n <= 60 * 24 * 30) {
+											plugin.settings.archidektCacheTtlMinutes = n;
+											await plugin.saveSettings();
+										}
+									}),
+							);
+						},
+					},
 				],
 			},
 			{
@@ -280,6 +300,21 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 									.setDestructive()
 									.onClick(async () => {
 										await plugin.clearMoxfieldCache();
+										this.update();
+									}),
+							);
+						},
+					},
+					{
+						name: "Archidekt deck cache",
+						desc: `Cached decks: ${plugin.archidekt?.size() ?? 0}`,
+						render: (setting) => {
+							setting.addButton((btn) =>
+								btn
+									.setButtonText("Clear cache")
+									.setDestructive()
+									.onClick(async () => {
+										await plugin.clearArchidektCache();
 										this.update();
 									}),
 							);

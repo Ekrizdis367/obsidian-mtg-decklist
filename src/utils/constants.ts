@@ -16,3 +16,7 @@ export const PLUGIN_USER_AGENT = "Obsidian-MTG-Decklist/1.0.0";
 export const MOXFIELD_API_BASE = "https://api2.moxfield.com";
 export const MOXFIELD_DECK_PATH = "/v3/decks/all";
 export const MOXFIELD_DEFAULT_TTL_MINUTES = 360;
+
+export const ARCHIDEKT_API_BASE = "https://archidekt.com";
+export const ARCHIDEKT_DECK_PATH = "/api/decks";
+export const ARCHIDEKT_DEFAULT_TTL_MINUTES = 360;

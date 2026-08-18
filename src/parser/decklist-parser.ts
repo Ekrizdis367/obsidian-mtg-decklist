@@ -1,4 +1,5 @@
 import { extractMoxfieldId } from "../moxfield/url";
+import { extractArchidektId } from "../archidekt/url";
 import type {
 	DecklistDirectives,
 	DecklistEntry,
@@ -69,14 +70,10 @@ function applyDirective(
 			return true;
 		}
 	}
-	if (key === "moxfield" || key === "source") {
+	if (key === "moxfield") {
 		const id = extractMoxfieldId(rawValue);
 		if (id) {
-			ctx.remoteSource = {
-				kind: "moxfield",
-				id,
-				rawUrl: rawValue,
-			};
+			ctx.remoteSource = { kind: "moxfield", id, rawUrl: rawValue };
 			return true;
 		}
 		ctx.errors.push({
@@ -86,7 +83,53 @@ function applyDirective(
 		});
 		return true;
 	}
+	if (key === "archidekt") {
+		const id = extractArchidektId(rawValue);
+		if (id) {
+			ctx.remoteSource = { kind: "archidekt", id, rawUrl: rawValue };
+			return true;
+		}
+		ctx.errors.push({
+			lineNumber,
+			rawLine,
+			message: "Could not extract an Archidekt deck ID from this URL.",
+		});
+		return true;
+	}
+	if (key === "source") {
+		const remote = resolveRemoteSource(rawValue);
+		if (remote) {
+			ctx.remoteSource = remote;
+			return true;
+		}
+		ctx.errors.push({
+			lineNumber,
+			rawLine,
+			message: "Could not extract a Moxfield or Archidekt deck ID from this URL.",
+		});
+		return true;
+	}
 	return false;
+}
+
+function resolveRemoteSource(rawValue: string): RemoteSource | null {
+	const lower = rawValue.toLowerCase();
+	if (lower.includes("archidekt.com")) {
+		const id = extractArchidektId(rawValue);
+		return id ? { kind: "archidekt", id, rawUrl: rawValue } : null;
+	}
+	if (lower.includes("moxfield.com")) {
+		const id = extractMoxfieldId(rawValue);
+		return id ? { kind: "moxfield", id, rawUrl: rawValue } : null;
+	}
+	// Bare IDs with no host: a purely-numeric ID is Archidekt's format (Moxfield's
+	// public IDs are mixed alphanumeric and never digits-only), so check that first.
+	const archidektId = extractArchidektId(rawValue);
+	if (archidektId && /^\d+$/.test(rawValue.trim())) return { kind: "archidekt", id: archidektId, rawUrl: rawValue };
+	const moxfieldId = extractMoxfieldId(rawValue);
+	if (moxfieldId) return { kind: "moxfield", id: moxfieldId, rawUrl: rawValue };
+	if (archidektId) return { kind: "archidekt", id: archidektId, rawUrl: rawValue };
+	return null;
 }
 
 const SPECIAL_SECTIONS: Record<string, SectionKind> = {

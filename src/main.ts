@@ -15,6 +15,9 @@ import type { CachedCardEntry } from "./scryfall/types";
 import { MoxfieldClient } from "./moxfield/client";
 import type { CachedMoxfieldDeck } from "./moxfield/types";
 import { extractMoxfieldId } from "./moxfield/url";
+import { ArchidektClient } from "./archidekt/client";
+import type { CachedArchidektDeck } from "./archidekt/types";
+import { extractArchidektId } from "./archidekt/url";
 import { DeckExportModal } from "./ui/deck-export-modal";
 
 interface PersistedData {
@@ -22,6 +25,7 @@ interface PersistedData {
 	cache: Record<string, CachedCardEntry>;
 	symbology?: Record<string, ScryfallSymbol>;
 	moxfield?: Record<string, CachedMoxfieldDeck>;
+	archidekt?: Record<string, CachedArchidektDeck>;
 }
 
 export default class MtgDecklistPlugin extends Plugin {
@@ -31,6 +35,7 @@ export default class MtgDecklistPlugin extends Plugin {
 	symbology!: SymbologyClient;
 	preview!: CardPreview;
 	moxfield!: MoxfieldClient;
+	archidekt!: ArchidektClient;
 
 	async onload(): Promise<void> {
 		const data = (await this.loadData()) as Partial<PersistedData> | null;
@@ -39,6 +44,7 @@ export default class MtgDecklistPlugin extends Plugin {
 		this.symbology = new SymbologyClient(data?.symbology ?? {});
 		this.client = new ScryfallClient(this.cardCache);
 		this.moxfield = new MoxfieldClient(data?.moxfield ?? {});
+		this.archidekt = new ArchidektClient(data?.archidekt ?? {});
 		this.preview = new CardPreview();
 
 		this.registerMarkdownCodeBlockProcessor(DECKLIST_BLOCK_LANG, createDecklistProcessor(this));
@@ -97,6 +103,21 @@ export default class MtgDecklistPlugin extends Plugin {
 				new Notice("Moxfield cache cleared");
 			},
 		});
+
+		this.addCommand({
+			id: "refresh-archidekt-deck",
+			name: "Archidekt: refresh deck under cursor",
+			editorCheckCallback: (checking, editor) => this.refreshArchidektUnderCursor(editor, checking),
+		});
+
+		this.addCommand({
+			id: "clear-archidekt-cache",
+			name: "Archidekt: clear deck cache",
+			callback: async () => {
+				await this.clearArchidektCache();
+				new Notice("Archidekt cache cleared");
+			},
+		});
 	}
 
 	onunload(): void {
@@ -111,7 +132,8 @@ export default class MtgDecklistPlugin extends Plugin {
 		const cardDirty = this.cardCache.consumeDirty();
 		const symDirty = this.symbology.consumeDirty();
 		const moxDirty = this.moxfield.consumeDirty();
-		if (cardDirty || symDirty || moxDirty) {
+		const archiDirty = this.archidekt.consumeDirty();
+		if (cardDirty || symDirty || moxDirty || archiDirty) {
 			await this.persist();
 		}
 	}
@@ -123,6 +145,11 @@ export default class MtgDecklistPlugin extends Plugin {
 
 	async clearMoxfieldCache(): Promise<void> {
 		this.moxfield.clear();
+		await this.persist();
+	}
+
+	async clearArchidektCache(): Promise<void> {
+		this.archidekt.clear();
 		await this.persist();
 	}
 
@@ -138,6 +165,7 @@ export default class MtgDecklistPlugin extends Plugin {
 			cache: this.cardCache.serialize(),
 			symbology: this.symbology.serialize(),
 			moxfield: this.moxfield.serialize(),
+			archidekt: this.archidekt.serialize(),
 		};
 		await this.saveData(data);
 	}
@@ -145,12 +173,24 @@ export default class MtgDecklistPlugin extends Plugin {
 	private refreshMoxfieldUnderCursor(editor: Editor, checking: boolean): boolean {
 		const block = findDecklistBlockAroundCursor(editor);
 		if (!block) return false;
-		const id = findMoxfieldIdInBlock(block);
+		const id = findRemoteIdInBlock(block, /^(?:moxfield|source)\s*[:=]\s*(.+)$/i, extractMoxfieldId);
 		if (!id) return false;
 		if (checking) return true;
 		this.moxfield.invalidate(id);
 		void this.persist();
 		new Notice("Moxfield deck cache cleared. Reopen the note or switch modes to refetch.");
+		return true;
+	}
+
+	private refreshArchidektUnderCursor(editor: Editor, checking: boolean): boolean {
+		const block = findDecklistBlockAroundCursor(editor);
+		if (!block) return false;
+		const id = findRemoteIdInBlock(block, /^(?:archidekt|source)\s*[:=]\s*(.+)$/i, extractArchidektId);
+		if (!id) return false;
+		if (checking) return true;
+		this.archidekt.invalidate(id);
+		void this.persist();
+		new Notice("Archidekt deck cache cleared. Reopen the note or switch modes to refetch.");
 		return true;
 	}
 
@@ -184,12 +224,19 @@ const DECKLIST_TEMPLATE = `\`\`\`decklist
 \`\`\`
 `;
 
-function findMoxfieldIdInBlock(block: string): string | null {
+function findRemoteIdInBlock(
+	block: string,
+	directiveRe: RegExp,
+	extractId: (raw: string) => string | null,
+): string | null {
 	for (const line of block.split(/\r?\n/)) {
 		const trimmed = line.trim();
 		if (!trimmed) continue;
-		const m = trimmed.match(/^(?:moxfield|source)\s*[:=]\s*(.+)$/i);
-		if (m) return extractMoxfieldId(m[1] ?? "");
+		const m = trimmed.match(directiveRe);
+		if (m) {
+			const id = extractId(m[1] ?? "");
+			if (id) return id;
+		}
 	}
 	return null;
 }

@@ -33,13 +33,13 @@ Inline mana symbols and hoverable card links in a regular note:
 - **Inline mana symbols** – Type things like `{2}{W}{U}` in any note and they render as Scryfall mana icons (works in Reading view and Live Preview).
 - **Inline card links** – `` `mtg:Lightning Bolt` `` or `[Bolt](mtg:Lightning Bolt)` become hoverable card links (desktop: click opens Scryfall; mobile: tap shows preview, then **Open on Scryfall** in the overlay).
 - **Combo blocks** – Document combos in their own ` ```combo ` block: prerequisites, ordered steps, an optional loop diagram with a back-arrow for cyclical combos, "break out" steps, counterplay notes, optional `infinite:` tags on the combo or per line, and multi-line variants.
-- **Moxfield import** – Drop a public Moxfield deck URL into a `decklist` block and the plugin fetches the cards for you. A small refresh button in the deck header (and a command) re-pulls the latest version.
+- **Moxfield & Archidekt import** – Drop a public Moxfield or Archidekt deck URL into a `decklist` block and the plugin fetches the cards for you. A small refresh button in the deck header (and a command) re-pulls the latest version.
 - **Exporters** – Export the decklist under your cursor as Moxfield text or as an MTG Arena import via the command palette (opens a modal to copy or insert at the cursor).
-- **Local cache** – Card data, Scryfall mana symbology, and fetched Moxfield decks are cached on disk so re-renders are instant and offline-friendly.
+- **Local cache** – Card data, Scryfall mana symbology, and fetched Moxfield/Archidekt decks are cached on disk so re-renders are instant and offline-friendly.
 
 ## Privacy
 
-This plugin **does not access** your system clipboard. Export commands open a modal with the generated text so you can copy it yourself or insert it at the cursor. Card data is fetched from the public [Scryfall API](https://scryfall.com/docs/api) and, optionally, public Moxfield deck URLs you paste into a block. Nothing is sent to any server other than those endpoints.
+This plugin **does not access** your system clipboard. Export commands open a modal with the generated text so you can copy it yourself or insert it at the cursor. Card data is fetched from the public [Scryfall API](https://scryfall.com/docs/api) and, optionally, public Moxfield or Archidekt deck URLs you paste into a block. Nothing is sent to any server other than those endpoints.
 
 ## Installation
 
@@ -213,6 +213,7 @@ Supported keys:
 | `sort` | `name`, `cmc-name`, `source` |
 | `legality` (or `format`) | `off`, `standard`, `pioneer`, `modern`, `legacy`, `vintage`, `pauper`, `commander`, `brawl` |
 | `moxfield` (or `source`) | A Moxfield deck URL or public deck ID — see [Loading from Moxfield](#loading-from-moxfield). |
+| `archidekt` (or `source`) | An Archidekt deck URL or deck ID — see [Loading from Archidekt](#loading-from-archidekt). |
 
 When `legality` is set (and not `off`), commander decks also warn on cards outside the combined color identity of every card in the `# Commander` section — including partner pairs.
 
@@ -254,6 +255,24 @@ If a tag annotation references a name that isn't in the Moxfield deck, you'll ge
 - Moxfield's API is undocumented and could change without notice. If a fetch fails, you'll see an inline error with the original URL and a retry button.
 - Card identity is still resolved via Scryfall by name, so you'll get whatever printing Scryfall returns rather than the exact set/foil that Moxfield has on file.
 - Be respectful of Moxfield's service — don't aggressively shorten the cache TTL or hammer the refresh button. Use this feature at your own risk.
+
+## Loading from Archidekt
+
+Works the same way as [Moxfield](#loading-from-moxfield), but for a **public** Archidekt deck:
+
+````markdown
+```decklist
+archidekt: https://archidekt.com/decks/10282219/jeskai_golems
+```
+````
+
+You can also pass just the deck's numeric ID (`archidekt: 10282219`), and the generic `source:` directive auto-detects Archidekt vs. Moxfield URLs (or a bare numeric ID for Archidekt). Per-block directives like `group:` and `sort:` still work alongside `archidekt:`, and card [role tags](#card-role-tags) can be layered on the same way as [tagging a Moxfield-loaded deck](#tagging-cards-in-a-moxfield-loaded-deck).
+
+Archidekt's "Commander", "Sideboard", and "Maybeboard" categories map to the equivalent sections. Any other categories you've set up in Archidekt (e.g. "Removal", "Ramp", "Lands") become their own sections automatically, in the same order they're arranged in Archidekt; a card with several category tags is placed under the first one. Cards with no custom category fall back to a plain "Mainboard" section.
+
+**Caching**: Fetched decks are cached locally, same as Moxfield. Tweak the TTL with **Settings → MTG Decklist → Archidekt cache lifetime (minutes)**, invalidate one deck with the **Refresh Archidekt deck under cursor** command, or wipe everything with **Clear Archidekt deck cache**.
+
+**Caveats**: the same ones as Moxfield apply — only public decks work, Archidekt's API is undocumented and could change without notice, and card identity is still resolved via Scryfall by name rather than Archidekt's exact printing.
 
 ## Combo blocks
 
@@ -414,8 +433,10 @@ Available under **Settings → Community plugins → MTG Decklist**:
 - **Render inline mana symbols** – Toggle inline `{R}`-style replacement.
 - **Render inline card links** – Toggle inline `mtg:` link rendering.
 - **Moxfield cache lifetime (minutes)** – How long fetched Moxfield decks stay cached before being refetched (default 6 hours).
+- **Archidekt cache lifetime (minutes)** – How long fetched Archidekt decks stay cached before being refetched (default 6 hours).
 - **Card cache** – Shows how many cards are cached and offers a one-click clear.
 - **Moxfield deck cache** – Shows how many Moxfield decks are cached and offers a one-click clear.
+- **Archidekt deck cache** – Shows how many Archidekt decks are cached and offers a one-click clear.
 
 ## Commands
 
@@ -426,6 +447,8 @@ Available from the command palette:
 - **Copy Decklist under cursor as Arena import** – Copies the deck under your cursor in MTG Arena import format.
 - **Refresh Moxfield deck under cursor** – Invalidates the cached copy of the Moxfield deck under the cursor so it re-fetches on next render.
 - **Clear Moxfield deck cache** – Wipes all cached Moxfield deck responses.
+- **Refresh Archidekt deck under cursor** – Invalidates the cached copy of the Archidekt deck under the cursor so it re-fetches on next render.
+- **Clear Archidekt deck cache** – Wipes all cached Archidekt deck responses.
 - **Clear card cache** – Wipes the on-disk card and symbology cache.
 
 ## Privacy & data use
@@ -433,15 +456,17 @@ Available from the command palette:
 - Card data and mana symbology are fetched on demand from the public Scryfall API (`https://api.scryfall.com`) only when an unknown card is encountered.
 - Card images are loaded directly from Scryfall's CDN when you hover a card.
 - When a `decklist` block uses `moxfield:`, the **only** request to Moxfield is a single GET to `https://api2.moxfield.com/v3/decks/all/<public-id>`. No account or credentials are involved, and only the public deck ID you typed leaves your machine.
+- When a `decklist` block uses `archidekt:`, the **only** request to Archidekt is a single GET to `https://archidekt.com/api/decks/<deck-id>/`. Same story — no account or credentials involved, only the deck ID leaves your machine.
 - No telemetry. Nothing about your notes or vault contents is sent anywhere.
-- All fetched data (card details, mana symbology, Moxfield deck responses) is cached locally inside the plugin's own data file under your vault.
+- All fetched data (card details, mana symbology, Moxfield/Archidekt deck responses) is cached locally inside the plugin's own data file under your vault.
 
-Please be considerate of Scryfall's and Moxfield's free services and their respective API guidelines.
+Please be considerate of Scryfall's, Moxfield's, and Archidekt's free services and their respective API guidelines.
 
 ## Acknowledgements
 
 - [Scryfall](https://scryfall.com) for their excellent free card API and mana symbology assets.
 - [Moxfield](https://www.moxfield.com) for their public deck pages, which the optional `moxfield:` directive relies on.
+- [Archidekt](https://archidekt.com) for their public deck pages, which the optional `archidekt:` directive relies on.
 - The Obsidian team for the [plugin API](https://docs.obsidian.md).
 - Magic: The Gathering is © Wizards of the Coast. This plugin is unofficial fan content and is not produced, endorsed, supported, or affiliated with Wizards of the Coast.
 

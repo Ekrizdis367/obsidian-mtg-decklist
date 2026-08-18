@@ -51,7 +51,7 @@ export interface DecklistDirectives {
 }
 
 export interface RemoteSource {
-	kind: "moxfield";
+	kind: "moxfield" | "archidekt";
 	id: string;
 	rawUrl?: string;
 }
