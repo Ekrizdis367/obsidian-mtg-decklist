@@ -1,6 +1,6 @@
 {
 	"name": "mtg-decklist",
-	"version": "1.0.13",
+	"version": "1.0.14",
 	"description": "Render Magic: The Gathering decklists from fenced code blocks with Scryfall card data, hover/tap image previews, and deck stats.",
 	"main": "main.js",
 	"type": "module",
