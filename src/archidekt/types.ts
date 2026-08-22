@@ -11,6 +11,11 @@ export interface ArchidektOracleCard {
 
 export interface ArchidektCard {
 	oracleCard?: ArchidektOracleCard;
+	collectorNumber?: string;
+	edition?: {
+		editioncode?: string;
+		editionname?: string;
+	};
 }
 
 export interface ArchidektDeckCard {

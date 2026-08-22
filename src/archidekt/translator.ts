@@ -107,12 +107,15 @@ export function translateArchidektDeck(deck: ArchidektDeck): ParsedDecklist {
 }
 
 function deckCardToEntry(item: ArchidektDeckCard, nextLine: () => number): DecklistEntry | null {
-	const oracle = item.card?.oracleCard;
+	const card = item.card;
+	const oracle = card?.oracleCard;
 	const name = oracle?.name?.trim();
 	if (!name) return null;
 	const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
 	const lineNumber = nextLine();
 	const hints = buildHints(oracle);
+	const set = card?.edition?.editioncode?.trim().toLowerCase();
+	const collectorNumber = card?.collectorNumber?.trim();
 	return {
 		quantity,
 		name,
@@ -120,6 +123,7 @@ function deckCardToEntry(item: ArchidektDeckCard, nextLine: () => number): Deckl
 		lineNumber,
 		tags: [],
 		...(hints ? { hints } : {}),
+		...(set && collectorNumber ? { set, collectorNumber } : {}),
 	};
 }
 
