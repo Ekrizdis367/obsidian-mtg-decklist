@@ -14,7 +14,9 @@ export function extractMoxfieldId(input: string): string | null {
 		return urlMatch[1];
 	}
 
-	if (/^[A-Za-z0-9_-]{6,}$/.test(trimmed)) {
+	// Bare public IDs are mixed alphanumeric; reject digits-only so Archidekt
+	// numeric IDs (e.g. "10282219") are not mistaken for Moxfield.
+	if (/^[A-Za-z0-9_-]{6,}$/.test(trimmed) && !/^\d+$/.test(trimmed)) {
 		return trimmed;
 	}
 
