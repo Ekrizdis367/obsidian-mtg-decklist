@@ -2,11 +2,12 @@ import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type MtgDecklistPlugin from "./main";
 import { ARCHIDEKT_DEFAULT_TTL_MINUTES, MOXFIELD_DEFAULT_TTL_MINUTES } from "./utils/constants";
 import { t } from "./utils/i18n";
+import { LANGUAGE_OPTIONS, type CardLanguage as SupportedCardLanguage } from "./utils/languages";
 
 export type GroupingMode = "auto" | "manual" | "respect-manual";
 export type CardSortOrder = "source" | "name" | "cmc-name";
 export type ImageQuality = "small" | "normal" | "large" | "png";
-export type CardLanguage = "en" | "fr";
+export type CardLanguage = SupportedCardLanguage;
 export type LegalityFormat =
 	| "off"
 	| "standard"
@@ -111,17 +112,16 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						name: tr("Card language"),
 						desc: tr("Language for card names and preview images. French prints are used when available, otherwise English is shown. Reopen a note to refresh its decklists."),
 						render: (setting) => {
-							setting.addDropdown((dd) =>
-								dd
-									.addOption("en", tr("English (default)"))
-									.addOption("fr", "Français")
-									.setValue(plugin.settings.cardLanguage)
-									.onChange(async (value) => {
-										plugin.settings.cardLanguage = value as CardLanguage;
-										await plugin.saveSettings();
-										this.update();
-									}),
-							);
+							setting.addDropdown((dd) => {
+								for (const language of LANGUAGE_OPTIONS) {
+									dd.addOption(language.code, language.code === "en" ? tr("English (default)") : language.label);
+								}
+								dd.setValue(plugin.settings.cardLanguage).onChange(async (value) => {
+									plugin.settings.cardLanguage = value as CardLanguage;
+									await plugin.saveSettings();
+									this.update();
+								});
+							});
 						},
 					},
 					{

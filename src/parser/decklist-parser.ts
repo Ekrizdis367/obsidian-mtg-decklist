@@ -1,5 +1,6 @@
 import { extractMoxfieldId } from "../moxfield/url";
 import { extractArchidektId } from "../archidekt/url";
+import { isSupportedLanguage, supportedLanguageList } from "../utils/languages";
 import type {
 	DecklistDirectives,
 	DecklistEntry,
@@ -14,7 +15,6 @@ export const DEFAULT_SECTION_TITLE = "Deck";
 
 const VALID_GROUP_VALUES = new Set<DecklistDirectives["group"]>(["auto", "manual", "respect-manual"]);
 const VALID_SORT_VALUES = new Set<DecklistDirectives["sort"]>(["name", "cmc-name", "source"]);
-const VALID_LANGUAGE_VALUES = new Set(["en", "fr"]);
 const VALID_LEGALITY_VALUES = new Set<DecklistDirectives["legality"]>([
 	"off",
 	"standard",
@@ -53,13 +53,13 @@ function applyDirective(
 	rawLine: string,
 ): boolean {
 	if (key === "language" || key === "lang") {
-		if (VALID_LANGUAGE_VALUES.has(value)) {
-			ctx.directives.language = value as "en" | "fr";
+		if (isSupportedLanguage(value)) {
+			ctx.directives.language = value;
 		} else {
 			ctx.errors.push({
 				lineNumber,
 				rawLine,
-				message: 'Unsupported card language. Use "en" or "fr".',
+				message: `Unsupported card language. Use ${supportedLanguageList()}.`,
 			});
 		}
 		return true;

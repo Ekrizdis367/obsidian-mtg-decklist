@@ -6,6 +6,8 @@
 
 An [Obsidian](https://obsidian.md) plugin that turns fenced ` ```decklist ` code blocks into rich, Moxfield-style Magic: The Gathering decklists with Scryfall card data, hover/tap image previews, and at-a-glance deck stats. It also lets you sprinkle inline mana symbols and hoverable card links throughout your regular notes.
 
+**Documentation:** [Quick start](#quick-start) · [Guide utilisateur en français](docs/guide-fr.md) · [Adding a language / contributing a translation](docs/adding-a-language.md)
+
 ## Screenshots
 
 Decklist rendered as a Moxfield-style deck panel:
@@ -30,7 +32,7 @@ Inline mana symbols and hoverable card links in a regular note:
 - **Specific printings** – Pin a card to one exact printing with `(SET) NUMBER` syntax (e.g. `1 Ancient Den (MRD) 278`), the same style Moxfield and MTGO exports use — the card and its image preview use that printing.
 - **Deck stats** – Mana curve, cards-by-color pie, and type breakdown rendered under the list.
 - **Commander-aware header** – Detects a `# Commander` section, shows the commander name, the deck's color combo (Azorius, Esper, Witch‑Maw, …), color pips, and total card count.
-- **Sideboard / maybeboard** – `# Sideboard`, `# SB`, `# Maybeboard`, `# Maybe` sections render separately and can start collapsed.
+- **Sideboard / maybeboard** – `# Sideboard`, `# Réserve`, `# Maybeboard`, `# Cartes envisagées` sections render separately and can start collapsed.
 - **Inline mana symbols** – Type things like `{2}{W}{U}` in any note and they render as Scryfall mana icons (works in Reading view and Live Preview).
 - **Inline card links** – `` `mtg:Lightning Bolt` `` or `[Bolt](mtg:Lightning Bolt)` become hoverable card links (desktop: click opens Scryfall; mobile: tap shows preview, then **Open on Scryfall** in the overlay).
 - **Combo blocks** – Document combos in their own ` ```combo ` block: prerequisites, ordered steps, an optional loop diagram with a back-arrow for cyclical combos, "break out" steps, counterplay notes, optional `infinite:` tags on the combo or per line, and multi-line variants.
@@ -223,6 +225,8 @@ When `legality` is set (and not `off`), commander decks also warn on cards outsi
 
 Use **Settings → MTG Decklist → Card language** to select English (default) or Français. This also localizes the plugin's user interface, including section headings (e.g. Sideboard → Réserve, Land → Terrain), statistics, combo labels, settings, tooltips, export dialogs and notices. To override the language for an individual deck, add a directive before any card or section headers:
 
+For step-by-step instructions see the [French user guide](docs/guide-fr.md). Interested in Spanish, German or another Scryfall-supported language? See [how to contribute a translation](docs/adding-a-language.md).
+
 ````markdown
 ```decklist
 language: fr
@@ -243,6 +247,8 @@ Card names in the source decklist should remain in their normal **English/Oracle
 **Image quality:** The global preview setting supports `small`, `normal`, `large`, and now `png` (up to 745 × 1040 px). PNG avoids additional JPEG compression but cannot restore detail to an inherently low-resolution scan. The plugin does not stretch or synthesize missing art.
 
 The card images reflect the text printed in that language; the canonical English/Oracle data still drives rules and legality. Source syntax and exports remain in English for interoperability, though `# Réserve`, `# Commandant`, and `# Cartes envisagées` are accepted as section aliases. A few French aliases are also accepted in combo block keys (e.g. `nom:`, `résultat:`, `étapes:`, `boucle:`). User-authored content is never machine-translated. Inline `mtg:Card Name` links follow the **global** language setting; custom Markdown link labels such as `[Foudre](mtg:Lightning Bolt)` remain untouched. Reopen notes to refresh decklists after changing the language setting, and reload the plugin to refresh command names in Obsidian's command palette.
+
+Only **English and French are currently supported** for UI text and card previews. Other Scryfall languages can be added by registering their code, providing an interface translation dictionary and checking the result in an isolated Obsidian vault. See the [developer instructions](docs/adding-a-language.md).
 
 ## Loading from Moxfield
 
@@ -453,6 +459,7 @@ Available under **Settings → Community plugins → MTG Decklist**:
 - **Grouping mode** – `Respect manual, fall back to auto` (default), `Auto (by card type)`, or `Manual (only your headers)`.
 - **Sort within group** – `Name (alphabetical)` (default), `CMC, then name`, or `Source (as typed)`.
 - **Image quality** – Size of card preview images: `Small`, `Normal`, `Large`, `PNG (highest quality)`.
+- **Card language** – `English` (default) or `Français`. Also translates the plugin UI; see [Card languages](#card-languages-english-and-french).
 - **Hover delay (ms)** – Delay before previews appear on desktop hover.
 - **Collapse sideboard by default** – Sideboard and maybeboard sections start collapsed.
 - **Show deck stats** – Toggle the mana curve / colors / types panel below decklists.

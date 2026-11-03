@@ -66,7 +66,6 @@ const FRENCH: Record<string, string> = {
 	"Moxfield response was malformed.": "Réponse Moxfield invalide.",
 	"Archidekt response was malformed.": "Réponse Archidekt invalide.",
 	"Retry": "Réessayer",
-	"Tag annotation for \"{name}\" did not match any card in the {source} deck.": "L'étiquette de \"{name}\" ne correspond à aucune carte du deck {source}.",
 	"Outside commander color identity: {colors}": "Hors de l'identité couleur du commandant : {colors}",
 	"Restricted in {format}": "Restreinte en {format}",
 	"Banned in {format}": "Interdite en {format}",
@@ -188,11 +187,27 @@ const FRENCH: Record<string, string> = {
 	"Missing card name after quantity.": "Nom de carte manquant après la quantité.",
 	"Could not parse line. Expected '<qty> <card name>' or '# Section'.": "Ligne invalide : format attendu « quantité nom de carte » ou « # Section ».",
 	"Missing required \"name:\" field.": "Champ « name: » obligatoire manquant.",
+	"Unsupported card language. Use {languages}.": "Langue de carte non prise en charge. Utilisez {languages}.",
+	"Line {number}: {message}": "Ligne {number} : {message}",
+	"Tag annotation for \"{name}\" did not match any card in the {source} deck.": "L'étiquette de « {name} » ne correspond à aucune carte du deck {source}.",
+	"Network error contacting {source}: {detail}": "Erreur réseau avec {source} : {detail}",
+	"{source} request failed (HTTP {status}).": "Requête {source} échouée (HTTP {status}).",
+	"list item without an active section ({item})": "Élément de liste sans section active ({item})",
+	"unrecognized line {item}": "Ligne non reconnue {item}",
+	"unknown key {key}": "Clé inconnue {key}",
+};
+
+/**
+ * Future locales can be added here without changing the rendering components.
+ * All keys are the canonical English UI strings used throughout the plugin.
+ */
+const TRANSLATIONS: Partial<Record<CardLanguage, Record<string, string>>> = {
+	fr: FRENCH,
 };
 
 /** Translate a short UI message, with {named} placeholders. */
 export function t(language: CardLanguage, english: string, values: Record<string, string | number> = {}): string {
-	const template = language === "fr" ? FRENCH[english] ?? english : english;
+	const template = TRANSLATIONS[language]?.[english] ?? english;
 	return template.replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (match, key: string) =>
 		Object.prototype.hasOwnProperty.call(values, key) ? String(values[key]) : match,
 	);
@@ -214,18 +229,23 @@ export function translatedSection(
 /** Parser and combo errors retain their canonical English representation internally. */
 export function translatedError(language: CardLanguage, message: string): string {
 	if (language === "en") return message;
+	const unsupportedLanguage = /^Unsupported card language\. Use (.*)\.$/.exec(message);
+	if (unsupportedLanguage) return t(language, "Unsupported card language. Use {languages}.", { languages: unsupportedLanguage[1] ?? "" });
 	const comboLine = /^Line (\d+): (.*)$/.exec(message);
-	if (comboLine) return "Ligne " + comboLine[1] + " : " + translatedError(language, comboLine[2] ?? "");
+	if (comboLine) return t(language, "Line {number}: {message}", {
+		number: comboLine[1] ?? "",
+		message: translatedError(language, comboLine[2] ?? ""),
+	});
 	const patterns: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
 		[/^Tag annotation for "(.+)" did not match any card in the (Moxfield|Archidekt) deck\.$/, (m) =>
-			"L'étiquette de « " + m[1] + " » ne correspond à aucune carte du deck " + m[2] + "."],
+			t(language, 'Tag annotation for "{name}" did not match any card in the {source} deck.', { name: m[1] ?? "", source: m[2] ?? "" })],
 		[/^Network error contacting (Moxfield|Archidekt): (.*)$/, (m) =>
-			"Erreur réseau avec " + m[1] + " : " + m[2]],
+			t(language, "Network error contacting {source}: {detail}", { source: m[1] ?? "", detail: m[2] ?? "" })],
 		[/^(Moxfield|Archidekt) request failed \(HTTP (\d+)\)\.$/, (m) =>
-			"Requête " + m[1] + " échouée (HTTP " + m[2] + ")."],
-		[/^list item without an active section \((.*)\)$/, (m) => "Élément de liste sans section active (" + m[1] + ")"],
-		[/^unrecognized line (.*)$/, (m) => "Ligne non reconnue " + m[1]],
-		[/^unknown key (.*)$/, (m) => "Clé inconnue " + m[1]],
+			t(language, "{source} request failed (HTTP {status}).", { source: m[1] ?? "", status: m[2] ?? "" })],
+		[/^list item without an active section \((.*)\)$/, (m) => t(language, "list item without an active section ({item})", { item: m[1] ?? "" })],
+		[/^unrecognized line (.*)$/, (m) => t(language, "unrecognized line {item}", { item: m[1] ?? "" })],
+		[/^unknown key (.*)$/, (m) => t(language, "unknown key {key}", { key: m[1] ?? "" })],
 	];
 	for (const [pattern, transform] of patterns) {
 		const found = message.match(pattern);

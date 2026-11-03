@@ -49,6 +49,22 @@ const french = {
 	image_uris: { normal: "https://cards.scryfall.io/normal/fr-example.jpg" },
 };
 
+test("language registry is the single source of truth for directive validation", async () => {
+	const { LANGUAGE_OPTIONS, isSupportedLanguage, supportedLanguageList } = await loadTypeScript("src/utils/languages.ts");
+	const { parseDecklist } = await loadTypeScript("src/parser/decklist-parser.ts");
+	assert.deepEqual(LANGUAGE_OPTIONS.map((language) => language.code), ["en", "fr"]);
+	assert.equal(supportedLanguageList(), '"en" or "fr"');
+	assert.equal(isSupportedLanguage("fr"), true);
+	assert.equal(isSupportedLanguage("es"), false);
+	for (const { code } of LANGUAGE_OPTIONS) {
+		const deck = parseDecklist(`language: ${code}\n# Sideboard\n2 Pyroclasm`);
+		assert.equal(deck.directives.language, code);
+		assert.equal(deck.errors.length, 0);
+	}
+	const invalid = parseDecklist("language: es\n4 Lightning Bolt");
+	assert.match(invalid.errors[0].message, /Use "en" or "fr"/);
+});
+
 test("decklist accepts language override without disturbing sideboard parsing", async () => {
 	const { parseDecklist } = await loadTypeScript("src/parser/decklist-parser.ts");
 	const parsed = parseDecklist([
