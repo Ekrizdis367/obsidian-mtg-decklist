@@ -10,8 +10,10 @@ import { colorComboName } from "../utils/color-names";
 import { moxfieldDeckUrl } from "../moxfield/url";
 import { archidektDeckUrl } from "../archidekt/url";
 import { printingKey } from "../scryfall/cache";
+import { localizedDisplayName, localizedPrintingKey } from "../scryfall/localization";
 import type { ScryfallCard } from "../scryfall/types";
-import type { LegalityFormat } from "../settings";
+import type { CardLanguage, LegalityFormat } from "../settings";
+import { t as translateUi, translatedError, translatedSection } from "../utils/i18n";
 
 const COLOR_ORDER = ["W", "U", "B", "R", "G"];
 
@@ -52,14 +54,19 @@ export function renderDeckView(
 ): void {
 	container.empty();
 	container.addClass("mtg-decklist");
+	const cardLanguage: CardLanguage = parsed.directives.language ?? plugin.settings.cardLanguage;
 
 	if (parsed.errors.length > 0) {
 		const errBox = container.createDiv({ cls: "mtg-decklist-errors" });
-		errBox.createDiv({ cls: "mtg-decklist-errors-title", text: "Decklist parse warnings" });
+		errBox.createDiv({ cls: "mtg-decklist-errors-title", text: translateUi(cardLanguage, "Decklist parse warnings") });
 		for (const err of parsed.errors) {
 			errBox.createDiv({
 				cls: "mtg-decklist-error",
-				text: `Line ${err.lineNumber}: ${err.message} (${err.rawLine.trim()})`,
+				text: translateUi(cardLanguage, "Line {number}: {message} ({raw})", {
+					number: err.lineNumber,
+					message: translatedError(cardLanguage, err.message),
+					raw: err.rawLine.trim(),
+				}),
 			});
 		}
 	}
@@ -97,20 +104,20 @@ export function renderDeckView(
 		container.addClass("mtg-decklist-singleton");
 	}
 
-	const commanderNames = collectCommanderNames(sections);
-	renderHeader(container, parsed, plugin, deckColorIdentity, isCommanderDeck, commanderNames, options);
+	const commanderNames = collectCommanderNames(sections, plugin, cardLanguage);
+	renderHeader(container, parsed, plugin, deckColorIdentity, isCommanderDeck, commanderNames, options, cardLanguage);
 
 	const body = container.createDiv({ cls: "mtg-decklist-body" });
 	const splitAt = Math.ceil(sections.length / 2);
 	const col1 = body.createDiv({ cls: "mtg-decklist-column" });
 	const col2 = body.createDiv({ cls: "mtg-decklist-column" });
 	sections.forEach((section, i) => {
-		renderSection(i < splitAt ? col1 : col2, section, plugin, violations, isCommanderDeck, legalityFormat);
+		renderSection(i < splitAt ? col1 : col2, section, plugin, violations, isCommanderDeck, legalityFormat, cardLanguage);
 	});
 
 	if (plugin.settings.showStats) {
 		const stats = computeStats(sections);
-		renderStats(container, stats, plugin);
+		renderStats(container, stats, plugin, cardLanguage);
 	}
 
 	const token = ++renderCounter;
@@ -126,6 +133,7 @@ function renderHeader(
 	isCommanderDeck: boolean,
 	commanderNames: string[],
 	options: RenderDeckOptions,
+	language: CardLanguage,
 ): void {
 	const header = container.createDiv({ cls: "mtg-decklist-header" });
 
@@ -135,11 +143,11 @@ function renderHeader(
 		const cmdrEl = titleRow.createDiv({ cls: "mtg-decklist-commander-name" });
 		cmdrEl.setText(titleText);
 		if (options.remoteSource || options.onRefresh) {
-			renderRemoteControls(titleRow, options);
+			renderRemoteControls(titleRow, options, language);
 		}
 	} else if (options.remoteSource || options.onRefresh) {
 		const titleRow = header.createDiv({ cls: "mtg-decklist-title-row mtg-decklist-title-row-empty" });
-		renderRemoteControls(titleRow, options);
+		renderRemoteControls(titleRow, options, language);
 	}
 
 	const row = header.createDiv({ cls: "mtg-decklist-header-row" });
@@ -151,12 +159,12 @@ function renderHeader(
 	});
 
 	const ciLabel = row.createSpan({ cls: "mtg-decklist-ci-label" });
-	ciLabel.setText(formatColorIdentityLabel(deckColorIdentity, isCommanderDeck));
+	ciLabel.setText(formatColorIdentityLabel(deckColorIdentity, isCommanderDeck, language));
 
-	row.createSpan({ cls: "mtg-decklist-total", text: `${parsed.totalCards} cards` });
+	row.createSpan({ cls: "mtg-decklist-total", text: translateUi(language, "{count} cards", { count: parsed.totalCards }) });
 }
 
-function renderRemoteControls(parent: HTMLElement, options: RenderDeckOptions): void {
+function renderRemoteControls(parent: HTMLElement, options: RenderDeckOptions, language: CardLanguage): void {
 	const controls = parent.createDiv({ cls: "mtg-decklist-remote-controls" });
 
 	if (options.remoteSource) {
@@ -169,14 +177,14 @@ function renderRemoteControls(parent: HTMLElement, options: RenderDeckOptions): 
 		});
 		link.setAttribute("target", "_blank");
 		link.setAttribute("rel", "noopener");
-		link.setAttribute("title", `${label}: open this deck`);
+		link.setAttribute("title", translateUi(language, "{source}: open deck", { source: label }));
 	}
 
 	if (options.onRefresh) {
 		const btn = controls.createEl("button", { cls: "mtg-decklist-refresh-btn" });
 		setIcon(btn, "refresh-cw");
-		btn.setAttribute("title", "Refresh deck from source");
-		btn.setAttribute("aria-label", "Refresh deck from source");
+		btn.setAttribute("title", translateUi(language, "Refresh deck from source"));
+		btn.setAttribute("aria-label", translateUi(language, "Refresh deck from source"));
 		btn.addEventListener("click", (e) => {
 			e.preventDefault();
 			options.onRefresh?.();
@@ -194,10 +202,14 @@ function collectCommanderCards(sections: ResolvedSection[]): ScryfallCard[] {
 	return cards;
 }
 
-function collectCommanderNames(sections: ResolvedSection[]): string[] {
+function collectCommanderNames(sections: ResolvedSection[], plugin: MtgDecklistPlugin, language: CardLanguage): string[] {
 	const commanderSection = sections.find((s) => s.kind === "commander");
 	if (!commanderSection) return [];
-	return commanderSection.entries.map(({ entry, card }) => card?.name ?? entry.name);
+	return commanderSection.entries.map(({ entry, card }) =>
+		card
+			? localizedDisplayName(card, plugin.client.getLocalizedCard(card, language, Boolean(entry.set)))
+			: entry.name,
+	);
 }
 
 function unionColorIdentity(cards: ScryfallCard[]): string[] {
@@ -229,13 +241,13 @@ function computeDeckColorIdentity(sections: ResolvedSection[], commanders: Scryf
 	return COLOR_ORDER.filter((c) => set.has(c));
 }
 
-function formatColorIdentityLabel(colors: string[], isCommanderDeck: boolean): string {
-	const combo = colorComboName(colors);
-	return isCommanderDeck ? `${combo} commander` : combo;
+function formatColorIdentityLabel(colors: string[], isCommanderDeck: boolean, language: CardLanguage): string {
+	const combo = translateUi(language, colorComboName(colors));
+	return isCommanderDeck ? translateUi(language, "{name} commander", { name: combo }) : combo;
 }
 
 function isLandSection(section: ResolvedSection): boolean {
-	const titleMatch = /^lands?$/i.test(section.title.trim());
+	const titleMatch = /^(lands?|terrains?)$/i.test(section.title.trim());
 	const cardsAllLand =
 		section.entries.length > 0 &&
 		section.entries.every(({ entry, card }) => {
@@ -252,6 +264,7 @@ function renderSection(
 	violations: Map<string, string[]>,
 	isCommanderDeck: boolean,
 	legalityFormat: LegalityFormat,
+	language: CardLanguage,
 ): void {
 	const sectionEl = parent.createDiv({ cls: `mtg-section mtg-section-${section.kind}` });
 	if (isLandSection(section)) sectionEl.addClass("mtg-section-lands");
@@ -262,13 +275,17 @@ function renderSection(
 
 	const headerEl = sectionEl.createDiv({ cls: "mtg-section-header" });
 	const caret = headerEl.createSpan({ cls: "mtg-section-caret", text: "\u25BE" });
-	headerEl.createSpan({ cls: "mtg-section-title", text: section.title });
+	headerEl.createSpan({ cls: "mtg-section-title", text: translatedSection(language, section.title, section.kind) });
 	headerEl.createSpan({ cls: "mtg-section-count", text: `${sectionEntryCount(section)}` });
 
 	const list = sectionEl.createDiv({ cls: "mtg-section-list" });
 	for (const resolved of section.entries) {
 		renderCardRow(list, resolved, {
 			preview: plugin.preview,
+				uiLanguage: language,
+			localizedCard: resolved.card
+				? plugin.client.getLocalizedCard(resolved.card, language, Boolean(resolved.entry.set))
+				: undefined,
 			symbology: plugin.symbology,
 			hoverDelayMs: plugin.settings.hoverDelayMs,
 			imageQuality: plugin.settings.imageQuality,
@@ -287,12 +304,12 @@ function renderSection(
 	if (startCollapsed) caret.setText("\u25B8");
 }
 
-function renderStats(container: HTMLElement, stats: DeckStats, plugin: MtgDecklistPlugin): void {
+function renderStats(container: HTMLElement, stats: DeckStats, plugin: MtgDecklistPlugin, language: CardLanguage): void {
 	const wrap = container.createDiv({ cls: "mtg-stats" });
 
 	if (stats.manaCurve.some((b) => b.count > 0)) {
 		const curve = wrap.createDiv({ cls: "mtg-stats-curve" });
-		curve.createDiv({ cls: "mtg-stats-title", text: "Mana curve" });
+		curve.createDiv({ cls: "mtg-stats-title", text: translateUi(language, "Mana curve") });
 		const max = Math.max(1, ...stats.manaCurve.map((b) => b.count));
 		const bars = curve.createDiv({ cls: "mtg-curve-bars" });
 		for (const b of stats.manaCurve) {
@@ -300,7 +317,7 @@ function renderStats(container: HTMLElement, stats: DeckStats, plugin: MtgDeckli
 			const barArea = col.createDiv({ cls: "mtg-curve-bar-area" });
 			const bar = barArea.createDiv({ cls: "mtg-curve-bar" });
 			bar.style.height = `${Math.round((b.count / max) * 100)}%`;
-			bar.setAttribute("title", `${b.count} card(s)`);
+			bar.setAttribute("title", translateUi(language, "{count} card(s)", { count: b.count }));
 			col.createDiv({ cls: "mtg-curve-label", text: b.cmc === 7 ? "7+" : `${b.cmc}` });
 			col.createDiv({ cls: "mtg-curve-count", text: `${b.count}` });
 		}
@@ -319,14 +336,14 @@ function renderStats(container: HTMLElement, stats: DeckStats, plugin: MtgDeckli
 			});
 			item.createSpan({ cls: "mtg-color-legend-count", text: `${c.count}` });
 			const label = c.color === "C" ? "colorless" : c.color;
-			item.setAttribute("title", `${c.count} card${c.count === 1 ? "" : "s"} with ${label}`);
+			item.setAttribute("title", translateUi(language, "{count} cards with {color}", { count: c.count, color: translateUi(language, label) }));
 		}
 
 		const pieColumn = body.createDiv({ cls: "mtg-color-pie-column" });
-		const titleEl = pieColumn.createDiv({ cls: "mtg-stats-title", text: "Cards by color" });
+			const titleEl = pieColumn.createDiv({ cls: "mtg-stats-title", text: translateUi(language, "Cards by color") });
 		titleEl.setAttribute(
 			"title",
-			"Number of cards whose color identity includes each color (multicolor cards count toward each of their colors).",
+			translateUi(language, "Number of cards whose color identity includes each color (multicolor cards count toward each of their colors)."),
 		);
 
 		const total = stats.colors.reduce((s, c) => s + c.count, 0) || 1;
@@ -348,24 +365,24 @@ function renderStats(container: HTMLElement, stats: DeckStats, plugin: MtgDeckli
 
 	if (stats.typeDistribution.length > 0) {
 		const typeWrap = wrap.createDiv({ cls: "mtg-stats-types" });
-		typeWrap.createDiv({ cls: "mtg-stats-title", text: "Types" });
+		typeWrap.createDiv({ cls: "mtg-stats-title", text: translateUi(language, "Types") });
 		for (const t of stats.typeDistribution) {
 			const row = typeWrap.createDiv({ cls: "mtg-type-row" });
-			row.createSpan({ cls: "mtg-type-name", text: t.type });
+			row.createSpan({ cls: "mtg-type-name", text: translateUi(language, t.type) });
 			row.createSpan({ cls: "mtg-type-count", text: `${t.count}` });
 		}
 	}
 
 	if (stats.tagDistribution.length > 0) {
 		const tagWrap = wrap.createDiv({ cls: "mtg-stats-tags" });
-		tagWrap.createDiv({ cls: "mtg-stats-title", text: "Roles" });
+		tagWrap.createDiv({ cls: "mtg-stats-title", text: translateUi(language, "Roles") });
 		for (const t of stats.tagDistribution) {
 			const row = tagWrap.createDiv({ cls: "mtg-tag-row" });
 			const icon = row.createSpan({ cls: `mtg-tag-icon mtg-card-tag-${t.id}` });
 			setIcon(icon, t.icon);
 			icon.setAttribute("aria-hidden", "true");
-			const name = row.createSpan({ cls: "mtg-tag-name", text: t.shortLabel });
-			name.setAttribute("title", t.label);
+			const name = row.createSpan({ cls: "mtg-tag-name", text: translateUi(language, t.shortLabel) });
+			name.setAttribute("title", translateUi(language, t.label));
 			row.createSpan({ cls: "mtg-tag-count", text: `${t.count}` });
 		}
 	}
@@ -390,6 +407,33 @@ function collectPendingEntries(sections: ResolvedSection[]): ResolvedEntry[] {
 	return out;
 }
 
+interface LocalizationJob {
+	card: ScryfallCard;
+	preferExactPrinting: boolean;
+}
+
+function collectPendingLocalizedCards(
+	sections: ResolvedSection[],
+	plugin: MtgDecklistPlugin,
+	language: CardLanguage,
+): LocalizationJob[] {
+	const jobs: LocalizationJob[] = [];
+	const seen = new Set<string>();
+	for (const section of sections) {
+		for (const { entry, card } of section.entries) {
+			if (!card) continue;
+			const preferExactPrinting = Boolean(entry.set && entry.collectorNumber);
+			const key = localizedPrintingKey(card, language, preferExactPrinting);
+			if (!key || seen.has(key)) continue;
+			seen.add(key);
+			if (plugin.client.needsLocalization(card, language, preferExactPrinting)) {
+				jobs.push({ card, preferExactPrinting });
+			}
+		}
+	}
+	return jobs;
+}
+
 async function triggerAsyncWork(
 	parsed: ParsedDecklist,
 	container: HTMLElement,
@@ -402,7 +446,9 @@ async function triggerAsyncWork(
 
 	const symbologyMissing = !plugin.symbology.hasAny();
 	const pending = collectPendingEntries(sections);
-	if (!symbologyMissing && pending.length === 0) return;
+	const language = parsed.directives.language ?? plugin.settings.cardLanguage;
+	const localizations = collectPendingLocalizedCards(sections, plugin, language);
+	if (!symbologyMissing && pending.length === 0 && localizations.length === 0) return;
 
 	let changed = false;
 	if (symbologyMissing) {
@@ -415,11 +461,15 @@ async function triggerAsyncWork(
 		if (changed) {
 			await plugin.persistCacheIfDirty();
 			if (!isCancelled()) renderDeckView(parsed, container, plugin, options);
+			return;
+		}
+		if (localizations.length > 0) {
+			await localizePendingCards(parsed, container, plugin, localizations, options, isCancelled);
 		}
 		return;
 	}
 
-	const banner = renderCardLoadingBanner(container, pending.length);
+	const banner = renderCardLoadingBanner(container, pending.length, language);
 
 	let attempts = 0;
 	let successes = 0;
@@ -438,7 +488,7 @@ async function triggerAsyncWork(
 			successes++;
 			changed = true;
 		}
-		updateCardLoadingBanner(banner, successes, pending.length, attempts);
+		updateCardLoadingBanner(banner, successes, pending.length, attempts, language);
 
 		const remaining = pending.length - successes;
 		const elapsed = Date.now() - startedAt;
@@ -461,6 +511,49 @@ async function triggerAsyncWork(
 	}
 
 	banner.remove();
+	if (localizations.length > 0) {
+		await localizePendingCards(parsed, container, plugin, localizations, options, isCancelled);
+	}
+}
+
+async function localizePendingCards(
+	parsed: ParsedDecklist,
+	container: HTMLElement,
+	plugin: MtgDecklistPlugin,
+	jobs: LocalizationJob[],
+	options: RenderDeckOptions,
+	isCancelled: () => boolean,
+): Promise<void> {
+	const banner = renderCardLoadingBanner(container, jobs.length, parsed.directives.language ?? plugin.settings.cardLanguage);
+	let loaded = 0;
+	let completed = 0;
+	const language = parsed.directives.language ?? plugin.settings.cardLanguage;
+	const startedAt = Date.now();
+	banner.label.setText(translateUi(language, "Localizing 0 / {total} cards…", { total: jobs.length }));
+
+	for (const job of jobs) {
+		if (isCancelled()) return;
+		const translated = await plugin.client.fetchLocalizedCard(job.card, language, job.preferExactPrinting);
+		if (isCancelled()) return;
+		completed++;
+		if (translated) loaded++;
+		banner.label.setText(translateUi(language, "Localizing {loaded} / {total} cards…", { loaded: completed, total: jobs.length }));
+		if (
+			loaded >= PROGRESS_RERENDER_MIN_NEW_CARDS &&
+			Date.now() - startedAt >= PROGRESS_RERENDER_MIN_INTERVAL_MS
+		) {
+			await plugin.persistCacheIfDirty();
+			if (!isCancelled()) renderDeckView(parsed, container, plugin, options);
+			return;
+		}
+	}
+
+	if (loaded > 0) {
+		await plugin.persistCacheIfDirty();
+		if (!isCancelled()) renderDeckView(parsed, container, plugin, options);
+	} else {
+		banner.remove();
+	}
 }
 
 interface CardLoadingBanner {
@@ -469,13 +562,13 @@ interface CardLoadingBanner {
 	remove(): void;
 }
 
-function renderCardLoadingBanner(container: HTMLElement, total: number): CardLoadingBanner {
+function renderCardLoadingBanner(container: HTMLElement, total: number, language: CardLanguage): CardLoadingBanner {
 	const root = createDiv({ cls: "mtg-decklist-card-loading" });
 	const spinner = root.createSpan({ cls: "mtg-decklist-loading-spinner" });
 	setIcon(spinner, "loader-2");
 	const label = root.createSpan({
 		cls: "mtg-decklist-card-loading-label",
-		text: `Loading 0 / ${total} cards…`,
+		text: translateUi(language, "Loading 0 / {total} cards…", { total }),
 	});
 
 	const header = container.querySelector(".mtg-decklist-header");
@@ -497,13 +590,14 @@ function updateCardLoadingBanner(
 	successes: number,
 	total: number,
 	attempts: number,
+	language: CardLanguage,
 ): void {
 	const remaining = total - successes;
 	if (remaining <= 0) {
-		banner.label.textContent = `Loaded ${total} cards`;
+		banner.label.textContent = translateUi(language, "Loaded {count} cards", { count: total });
 		return;
 	}
 	const failed = attempts - successes;
-	const base = `Loading ${successes} / ${total} cards…`;
-	banner.label.textContent = failed > 0 ? `${base} (${failed} unavailable)` : base;
+	const base = translateUi(language, "Loading {loaded} / {total} cards…", { loaded: successes, total });
+	banner.label.textContent = failed > 0 ? `${base} ${translateUi(language, "({count} unavailable)", { count: failed })}` : base;
 }

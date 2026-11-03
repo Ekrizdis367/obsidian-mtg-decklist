@@ -3,6 +3,8 @@ import type MtgDecklistPlugin from "../main";
 import { renderManaCost } from "../ui/mana-symbols";
 import { debounce } from "../utils/debounce";
 import type { ScryfallCard } from "../scryfall/types";
+import { localizedDisplayName } from "../scryfall/localization";
+import { t } from "../utils/i18n";
 
 const MANA_TOKEN_RE = /\{([A-Za-z0-9/]+)\}/g;
 const SKIP_TAGS = new Set(["CODE", "PRE", "SCRIPT", "STYLE", "TEXTAREA", "A"]);
@@ -123,27 +125,37 @@ export function createInlineCardLink(
 		attr: { href: "#", rel: "noopener" },
 	});
 	anchor.dataset.cardName = cardName;
-	attachCardBehavior(anchor, cardName, plugin);
+	attachCardBehavior(anchor, cardName, plugin, displayText);
 	return anchor;
 }
 
-export function attachCardBehavior(el: HTMLAnchorElement, cardName: string, plugin: MtgDecklistPlugin): void {
+export function attachCardBehavior(
+	el: HTMLAnchorElement,
+	cardName: string,
+	plugin: MtgDecklistPlugin,
+	displayText?: string,
+): void {
 	const updateFromCard = (card: ScryfallCard) => {
 		el.removeClass("mtg-card-pending");
+		const translated = plugin.client.getLocalizedCard(card, plugin.settings.cardLanguage);
+		const displayCard = translated ?? card;
+		if (!displayText) el.setText(localizedDisplayName(card, translated));
 		if (useTouchCardUi()) {
 			el.href = "#";
 			el.removeAttribute("target");
-			if (card.scryfall_uri) {
-				el.dataset.scryfallUri = card.scryfall_uri;
+			if (displayCard.scryfall_uri) {
+				el.dataset.scryfallUri = displayCard.scryfall_uri;
 			} else {
 				delete el.dataset.scryfallUri;
 			}
-		} else if (card.scryfall_uri) {
-			el.href = card.scryfall_uri;
+		} else if (displayCard.scryfall_uri) {
+			el.href = displayCard.scryfall_uri;
 			el.setAttribute("target", "_blank");
 			delete el.dataset.scryfallUri;
 		}
-		el.setAttribute("title", card.type_line ? `${card.name} — ${card.type_line}` : card.name);
+		const name = localizedDisplayName(card, translated);
+		const typeLine = translated?.printed_type_line ?? card.type_line;
+		el.setAttribute("title", typeLine ? `${name} — ${typeLine}` : name);
 	};
 
 	let cached = plugin.client.getCached(cardName) ?? null;
@@ -151,23 +163,31 @@ export function attachCardBehavior(el: HTMLAnchorElement, cardName: string, plug
 		updateFromCard(cached);
 	} else {
 		el.addClass("mtg-card-pending");
-		el.setAttribute("title", `Loading ${cardName}…`);
+		el.setAttribute("title", t(plugin.settings.cardLanguage, "Loading {name}…", { name: cardName }));
 	}
 
 	const ensureCard = async (): Promise<ScryfallCard | null> => {
-		if (cached) return cached;
-		const fetched = await plugin.client.fetchCardByName(cardName);
-		if (fetched) {
+		if (!cached) {
+			const fetched = await plugin.client.fetchCardByName(cardName);
+			if (!fetched) {
+				el.removeClass("mtg-card-pending");
+				el.addClass("mtg-card-not-found");
+				el.setAttribute("title", t(plugin.settings.cardLanguage, "Card not found: {name}", { name: cardName }));
+				return null;
+			}
 			cached = fetched;
-			updateFromCard(fetched);
-			await plugin.persistCacheIfDirty();
-		} else {
-			el.removeClass("mtg-card-pending");
-			el.addClass("mtg-card-not-found");
-			el.setAttribute("title", `Card not found: ${cardName}`);
 		}
-		return cached;
+		if (plugin.client.needsLocalization(cached, plugin.settings.cardLanguage)) {
+			await plugin.client.fetchLocalizedCard(cached, plugin.settings.cardLanguage);
+		}
+		updateFromCard(cached);
+		await plugin.persistCacheIfDirty();
+		return plugin.client.getLocalizedCard(cached, plugin.settings.cardLanguage) ?? cached;
 	};
+
+	// Inline card codes may be visible without being hovered. Resolve their
+	// translated names proactively only when localization is enabled.
+	if (plugin.settings.cardLanguage !== "en") void ensureCard();
 
 	if (useTouchCardUi()) {
 		el.addEventListener("click", (ev) => {

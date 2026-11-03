@@ -1,5 +1,6 @@
 import { extractMoxfieldId } from "../moxfield/url";
 import { extractArchidektId } from "../archidekt/url";
+import { isSupportedLanguage, supportedLanguageList } from "../utils/languages";
 import type {
 	DecklistDirectives,
 	DecklistEntry,
@@ -51,6 +52,18 @@ function applyDirective(
 	lineNumber: number,
 	rawLine: string,
 ): boolean {
+	if (key === "language" || key === "lang") {
+		if (isSupportedLanguage(value)) {
+			ctx.directives.language = value;
+		} else {
+			ctx.errors.push({
+				lineNumber,
+				rawLine,
+				message: `Unsupported card language. Use ${supportedLanguageList()}.`,
+			});
+		}
+		return true;
+	}
 	if (key === "group" || key === "grouping") {
 		if (VALID_GROUP_VALUES.has(value as DecklistDirectives["group"])) {
 			ctx.directives.group = value as DecklistDirectives["group"];
@@ -135,15 +148,20 @@ function resolveRemoteSource(rawValue: string): RemoteSource | null {
 const SPECIAL_SECTIONS: Record<string, SectionKind> = {
 	commander: "commander",
 	commanders: "commander",
+	commandant: "commander",
+	commandants: "commander",
 	sideboard: "sideboard",
 	side: "sideboard",
 	sb: "sideboard",
+	reserve: "sideboard",
 	maybeboard: "maybeboard",
 	maybe: "maybeboard",
+	"cartes envisagees": "maybeboard",
+	"cartes a essayer": "maybeboard",
 };
 
 function classifySection(title: string): SectionKind {
-	const key = title.trim().toLowerCase();
+	const key = title.trim().toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 	return SPECIAL_SECTIONS[key] ?? "general";
 }
 

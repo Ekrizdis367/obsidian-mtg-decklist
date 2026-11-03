@@ -1,4 +1,6 @@
 import type { LegalityFormat } from "../settings";
+import type { CardLanguage } from "../settings";
+import { t } from "../utils/i18n";
 import type { ScryfallCard } from "../scryfall/types";
 
 export function isCardLegal(card: ScryfallCard, format: LegalityFormat): boolean {
@@ -7,14 +9,14 @@ export function isCardLegal(card: ScryfallCard, format: LegalityFormat): boolean
 	return status === "legal" || status === "restricted";
 }
 
-export function legalityNote(card: ScryfallCard, format: LegalityFormat): string | null {
+export function legalityNote(card: ScryfallCard, format: LegalityFormat, language: CardLanguage = "en"): string | null {
 	if (format === "off") return null;
 	const status = card.legalities?.[format];
 	if (!status) return null;
 	if (status === "legal") return null;
-	if (status === "restricted") return `Restricted in ${format}`;
-	if (status === "banned") return `Banned in ${format}`;
-	return `Not legal in ${format}`;
+	if (status === "restricted") return t(language, "Restricted in {format}", { format });
+	if (status === "banned") return t(language, "Banned in {format}", { format });
+	return t(language, "Not legal in {format}", { format });
 }
 
 export function colorIdentityViolations(

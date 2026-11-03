@@ -1,3 +1,5 @@
+import type { CardLanguage } from "../utils/languages";
+
 export type SectionKind = "commander" | "sideboard" | "maybeboard" | "general";
 
 export interface DecklistEntryHints {
@@ -48,6 +50,7 @@ export interface DecklistDirectives {
 	group?: "auto" | "manual" | "respect-manual";
 	sort?: "name" | "cmc-name" | "source";
 	legality?: DecklistLegalityFormat;
+	language?: CardLanguage;
 }
 
 export interface RemoteSource {

@@ -1,10 +1,13 @@
 import { App, PluginSettingTab, type SettingDefinitionItem } from "obsidian";
 import type MtgDecklistPlugin from "./main";
 import { ARCHIDEKT_DEFAULT_TTL_MINUTES, MOXFIELD_DEFAULT_TTL_MINUTES } from "./utils/constants";
+import { t } from "./utils/i18n";
+import { LANGUAGE_OPTIONS, type CardLanguage as SupportedCardLanguage } from "./utils/languages";
 
 export type GroupingMode = "auto" | "manual" | "respect-manual";
 export type CardSortOrder = "source" | "name" | "cmc-name";
-export type ImageQuality = "small" | "normal" | "large";
+export type ImageQuality = "small" | "normal" | "large" | "png";
+export type CardLanguage = SupportedCardLanguage;
 export type LegalityFormat =
 	| "off"
 	| "standard"
@@ -20,6 +23,7 @@ export interface MtgDecklistSettings {
 	groupingMode: GroupingMode;
 	cardSortOrder: CardSortOrder;
 	imageQuality: ImageQuality;
+	cardLanguage: CardLanguage;
 	hoverDelayMs: number;
 	legalityFormat: LegalityFormat;
 	showStats: boolean;
@@ -34,6 +38,7 @@ export const DEFAULT_SETTINGS: MtgDecklistSettings = {
 	groupingMode: "respect-manual",
 	cardSortOrder: "name",
 	imageQuality: "normal",
+	cardLanguage: "en",
 	hoverDelayMs: 200,
 	legalityFormat: "off",
 	showStats: true,
@@ -54,28 +59,30 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const plugin = this.plugin;
+		const lang = plugin.settings.cardLanguage;
+		const tr = (message: string, values: Record<string, string | number> = {}) => t(lang, message, values);
 
 		const cardLinkDesc = createFragment();
-		cardLinkDesc.appendText("Render `mtg:Card Name` and [Display](mtg:Card Name) as hoverable card links. ");
-		cardLinkDesc.createEl("strong", { text: "Tip: " });
+		cardLinkDesc.appendText(tr("Render `mtg:Card Name` and [Display](mtg:Card Name) as hoverable card links. "));
+		cardLinkDesc.createEl("strong", { text: tr("Tip: ") });
 		cardLinkDesc.appendText(
-			"Desktop: hover to preview the image; click the link to open in browser. Mobile: tap for preview only, then tap open in browser in the overlay to open the site.",
+			tr("Desktop: hover to preview the image; click the link to open in browser. Mobile: tap for preview only, then tap open in browser in the overlay to open the site."),
 		);
 
 		return [
 			{
 				type: "group",
-				heading: "Rendering",
+				heading: tr("Rendering"),
 				items: [
 					{
-						name: "Grouping mode",
-						desc: "How to group cards. Auto groups by card type. Manual uses your # section headers. Respect-manual uses your headers when present and otherwise falls back to auto-grouping.",
+						name: tr("Grouping mode"),
+						desc: tr("How to group cards. Auto groups by card type. Manual uses your # section headers. Respect-manual uses your headers when present and otherwise falls back to auto-grouping."),
 						render: (setting) => {
 							setting.addDropdown((dd) =>
 								dd
-									.addOption("respect-manual", "Respect manual, fall back to auto")
-									.addOption("auto", "Auto (by card type)")
-									.addOption("manual", "Manual (only your headers)")
+									.addOption("respect-manual", tr("Respect manual, fall back to auto"))
+									.addOption("auto", tr("Auto (by card type)"))
+									.addOption("manual", tr("Manual (only your headers)"))
 									.setValue(plugin.settings.groupingMode)
 									.onChange(async (value) => {
 										plugin.settings.groupingMode = value as GroupingMode;
@@ -85,14 +92,14 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Sort within group",
-						desc: "Order cards inside each section. Source keeps the order you typed.",
+						name: tr("Sort within group"),
+						desc: tr("Order cards inside each section. Source keeps the order you typed."),
 						render: (setting) => {
 							setting.addDropdown((dd) =>
 								dd
-									.addOption("name", "Name (alphabetical)")
-									.addOption("cmc-name", "Mana value, then name")
-									.addOption("source", "Source (as typed)")
+									.addOption("name", tr("Name (alphabetical)"))
+									.addOption("cmc-name", tr("Mana value, then name"))
+									.addOption("source", tr("Source (as typed)"))
 									.setValue(plugin.settings.cardSortOrder)
 									.onChange(async (value) => {
 										plugin.settings.cardSortOrder = value as CardSortOrder;
@@ -102,14 +109,31 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Image quality",
-						desc: "Size of the card image shown in the hover/tap preview.",
+						name: tr("Card language"),
+						desc: tr("Language for card names and preview images. French prints are used when available, otherwise English is shown. Reopen a note to refresh its decklists."),
+						render: (setting) => {
+							setting.addDropdown((dd) => {
+								for (const language of LANGUAGE_OPTIONS) {
+									dd.addOption(language.code, language.code === "en" ? tr("English (default)") : language.label);
+								}
+								dd.setValue(plugin.settings.cardLanguage).onChange(async (value) => {
+									plugin.settings.cardLanguage = value as CardLanguage;
+									await plugin.saveSettings();
+									this.update();
+								});
+							});
+						},
+					},
+					{
+						name: tr("Image quality"),
+						desc: tr("Size of the card image shown in the hover/tap preview."),
 						render: (setting) => {
 							setting.addDropdown((dd) =>
 								dd
-									.addOption("small", "Small")
-									.addOption("normal", "Normal")
-									.addOption("large", "Large")
+									.addOption("small", tr("Small"))
+									.addOption("normal", tr("Normal"))
+									.addOption("large", tr("Large"))
+									.addOption("png", tr("PNG (highest quality)"))
 									.setValue(plugin.settings.imageQuality)
 									.onChange(async (value) => {
 										plugin.settings.imageQuality = value as ImageQuality;
@@ -119,8 +143,8 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Hover delay (ms)",
-						desc: "Delay before showing the card preview on desktop hover.",
+						name: tr("Hover delay (ms)"),
+						desc: tr("Delay before showing the card preview on desktop hover."),
 						render: (setting) => {
 							setting.addText((text) =>
 								text
@@ -140,11 +164,11 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Sections",
+				heading: tr("Sections"),
 				items: [
 					{
-						name: "Collapse sideboard by default",
-						desc: "Sideboard and maybeboard sections start collapsed.",
+						name: tr("Collapse sideboard by default"),
+						desc: tr("Sideboard and maybeboard sections start collapsed."),
 						render: (setting) => {
 							setting.addToggle((tg) =>
 								tg
@@ -160,11 +184,11 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Stats and metadata",
+				heading: tr("Stats and metadata"),
 				items: [
 					{
-						name: "Show deck stats",
-						desc: "Display mana curve, color identity, and type distribution.",
+						name: tr("Show deck stats"),
+						desc: tr("Display mana curve, color identity, and type distribution."),
 						render: (setting) => {
 							setting.addToggle((tg) =>
 								tg.setValue(plugin.settings.showStats).onChange(async (value) => {
@@ -175,12 +199,12 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Legality warnings",
-						desc: "Warn when cards are not legal in the selected format, and (for commander decks) when cards are outside the commanders' color identity. Override per block with a legality: directive.",
+						name: tr("Legality warnings"),
+						desc: tr("Warn when cards are not legal in the selected format, and (for commander decks) when cards are outside the commanders' color identity. Override per block with a legality: directive."),
 						render: (setting) => {
 							setting.addDropdown((dd) =>
 								dd
-									.addOption("off", "Off")
+									.addOption("off", tr("Off"))
 									.addOption("standard", "Standard")
 									.addOption("pioneer", "Pioneer")
 									.addOption("modern", "Modern")
@@ -201,11 +225,11 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Inline rendering",
+				heading: tr("Inline rendering"),
 				items: [
 					{
-						name: "Render inline mana symbols",
-						desc: "Replace mana tokens like {R}, {2}{U}, or {W/U} in regular note text with Scryfall icons.",
+						name: tr("Render inline mana symbols"),
+						desc: tr("Replace mana tokens like {R}, {2}{U}, or {W/U} in regular note text with Scryfall icons."),
 						render: (setting) => {
 							setting.addToggle((tg) =>
 								tg.setValue(plugin.settings.inlineManaSymbols).onChange(async (value) => {
@@ -216,7 +240,7 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Render inline card links",
+						name: tr("Render inline card links"),
 						desc: cardLinkDesc,
 						render: (setting) => {
 							setting.addToggle((tg) =>
@@ -231,11 +255,11 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Remote sources",
+				heading: tr("Remote sources"),
 				items: [
 					{
-						name: "Moxfield cache lifetime (minutes)",
-						desc: "Moxfield decks are cached for this long before being refetched. Use the refresh button on a deck to force a refresh sooner.",
+						name: tr("Moxfield cache lifetime (minutes)"),
+						desc: tr("Moxfield decks are cached for this long before being refetched. Use the refresh button on a deck to force a refresh sooner."),
 						render: (setting) => {
 							setting.addText((text) =>
 								text
@@ -252,8 +276,8 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Archidekt cache lifetime (minutes)",
-						desc: "Archidekt decks are cached for this long before being refetched. Use the refresh button on a deck to force a refresh sooner.",
+						name: tr("Archidekt cache lifetime (minutes)"),
+						desc: tr("Archidekt decks are cached for this long before being refetched. Use the refresh button on a deck to force a refresh sooner."),
 						render: (setting) => {
 							setting.addText((text) =>
 								text
@@ -273,15 +297,15 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Cache",
+				heading: tr("Cache"),
 				items: [
 					{
-						name: "Card cache",
-						desc: `Cached cards: ${plugin.cardCache?.size() ?? 0}`,
+						name: tr("Card cache"),
+						desc: tr("Cached cards: {count}", { count: plugin.cardCache?.size() ?? 0 }),
 						render: (setting) => {
 							setting.addButton((btn) =>
 								btn
-									.setButtonText("Clear cache")
+									.setButtonText(tr("Clear cache"))
 									.setDestructive()
 									.onClick(async () => {
 										await plugin.clearCardCache();
@@ -291,12 +315,12 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Moxfield deck cache",
-						desc: `Cached decks: ${plugin.moxfield?.size() ?? 0}`,
+						name: tr("Moxfield deck cache"),
+						desc: tr("Cached decks: {count}", { count: plugin.moxfield?.size() ?? 0 }),
 						render: (setting) => {
 							setting.addButton((btn) =>
 								btn
-									.setButtonText("Clear cache")
+									.setButtonText(tr("Clear cache"))
 									.setDestructive()
 									.onClick(async () => {
 										await plugin.clearMoxfieldCache();
@@ -306,12 +330,12 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Archidekt deck cache",
-						desc: `Cached decks: ${plugin.archidekt?.size() ?? 0}`,
+						name: tr("Archidekt deck cache"),
+						desc: tr("Cached decks: {count}", { count: plugin.archidekt?.size() ?? 0 }),
 						render: (setting) => {
 							setting.addButton((btn) =>
 								btn
-									.setButtonText("Clear cache")
+									.setButtonText(tr("Clear cache"))
 									.setDestructive()
 									.onClick(async () => {
 										await plugin.clearArchidektCache();
