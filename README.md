@@ -24,6 +24,7 @@ Inline mana symbols and hoverable card links in a regular note:
 - **Auto grouping** – Group cards automatically by type (Commander, Creature, Instant, Sorcery, Artifact, Enchantment, Planeswalker, Land, …) or honour your own `# Section` headers.
 - **Sorting** – Sort within each section by name, by CMC then name, or keep the order you typed.
 - **Card previews** – Hover (desktop) or tap (mobile) any card name for a full Scryfall image preview. On mobile, inline card taps show the preview only; use **Open on Scryfall** in the overlay to open the site (avoids the browser stealing the tap).
+- **French card names and previews** – Opt in to French card names and matching French card art, with a fallback to English for cards that have no French printing. The default remains English.
 - **Color identity & legality warnings** – Inline icons flag cards that break the deck's color identity or are not legal in your chosen format.
 - **Card role tags** – Manually tag cards with roles like `#ramp`, `#draw`, `#removal`, `#boardwipe`, `#counterspell`, `#wincon` (and your own custom tags) — each shows up as a small coloured icon next to the card name.
 - **Specific printings** – Pin a card to one exact printing with `(SET) NUMBER` syntax (e.g. `1 Ancient Den (MRD) 278`), the same style Moxfield and MTGO exports use — the card and its image preview use that printing.
@@ -212,10 +213,34 @@ Supported keys:
 | `group` (or `grouping`) | `auto`, `manual`, `respect-manual` |
 | `sort` | `name`, `cmc-name`, `source` |
 | `legality` (or `format`) | `off`, `standard`, `pioneer`, `modern`, `legacy`, `vintage`, `pauper`, `commander`, `brawl` |
+| `language` (or `lang`) | `en` (default) or `fr`, overriding the language in the plugin settings for this deck |
 | `moxfield` (or `source`) | A Moxfield deck URL or public deck ID — see [Loading from Moxfield](#loading-from-moxfield). |
 | `archidekt` (or `source`) | An Archidekt deck URL or deck ID — see [Loading from Archidekt](#loading-from-archidekt). |
 
 When `legality` is set (and not `off`), commander decks also warn on cards outside the combined color identity of every card in the `# Commander` section — including partner pairs.
+
+### Card languages (English and French)
+
+Use **Settings → MTG Decklist → Card language** to select English (default) or Français. To override the language for an individual deck, add a directive before any card or section headers:
+
+````markdown
+```decklist
+language: fr
+legality: modern
+
+# Deck
+4 Lightning Bolt
+4 Spark Elemental
+20 Mountain
+
+# Sideboard
+2 Pyroclasm
+```
+````
+
+Card names in the source decklist should remain in their normal **English/Oracle form** for reliable imports, exports, legality checks and card matching. In French mode, the rendered names and hover/tap preview images use French printings when Scryfall provides them; otherwise the existing English representation is retained. If you pin a printing with `(SET) NUMBER`, the same French printing is preferred; when unavailable, another French printing may be used.
+
+The language setting does **not** translate the rest of the plugin interface or the current Oracle text; the card images reflect the text as printed in that language. Inline `mtg:Card Name` links follow the **global** language setting; custom Markdown link labels such as `[Foudre](mtg:Lightning Bolt)` remain untouched. Reopen the note after changing the global language setting to refresh already-rendered decklists.
 
 ## Loading from Moxfield
 

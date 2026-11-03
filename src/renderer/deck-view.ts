@@ -10,8 +10,9 @@ import { colorComboName } from "../utils/color-names";
 import { moxfieldDeckUrl } from "../moxfield/url";
 import { archidektDeckUrl } from "../archidekt/url";
 import { printingKey } from "../scryfall/cache";
+import { localizedDisplayName, localizedPrintingKey } from "../scryfall/localization";
 import type { ScryfallCard } from "../scryfall/types";
-import type { LegalityFormat } from "../settings";
+import type { CardLanguage, LegalityFormat } from "../settings";
 
 const COLOR_ORDER = ["W", "U", "B", "R", "G"];
 
@@ -72,6 +73,7 @@ export function renderDeckView(
 	const groupingMode = parsed.directives.group ?? plugin.settings.groupingMode;
 	const sortOrder = parsed.directives.sort ?? plugin.settings.cardSortOrder;
 	const legalityFormat: LegalityFormat = parsed.directives.legality ?? plugin.settings.legalityFormat;
+	const cardLanguage: CardLanguage = parsed.directives.language ?? plugin.settings.cardLanguage;
 	const sections = buildResolvedSections(parsed, groupingMode, sortOrder, lookup);
 	const commanderCards = collectCommanderCards(sections);
 	const deckColorIdentity = computeDeckColorIdentity(sections, commanderCards);
@@ -97,7 +99,7 @@ export function renderDeckView(
 		container.addClass("mtg-decklist-singleton");
 	}
 
-	const commanderNames = collectCommanderNames(sections);
+	const commanderNames = collectCommanderNames(sections, plugin, cardLanguage);
 	renderHeader(container, parsed, plugin, deckColorIdentity, isCommanderDeck, commanderNames, options);
 
 	const body = container.createDiv({ cls: "mtg-decklist-body" });
@@ -105,7 +107,7 @@ export function renderDeckView(
 	const col1 = body.createDiv({ cls: "mtg-decklist-column" });
 	const col2 = body.createDiv({ cls: "mtg-decklist-column" });
 	sections.forEach((section, i) => {
-		renderSection(i < splitAt ? col1 : col2, section, plugin, violations, isCommanderDeck, legalityFormat);
+		renderSection(i < splitAt ? col1 : col2, section, plugin, violations, isCommanderDeck, legalityFormat, cardLanguage);
 	});
 
 	if (plugin.settings.showStats) {
@@ -194,10 +196,14 @@ function collectCommanderCards(sections: ResolvedSection[]): ScryfallCard[] {
 	return cards;
 }
 
-function collectCommanderNames(sections: ResolvedSection[]): string[] {
+function collectCommanderNames(sections: ResolvedSection[], plugin: MtgDecklistPlugin, language: CardLanguage): string[] {
 	const commanderSection = sections.find((s) => s.kind === "commander");
 	if (!commanderSection) return [];
-	return commanderSection.entries.map(({ entry, card }) => card?.name ?? entry.name);
+	return commanderSection.entries.map(({ entry, card }) =>
+		card
+			? localizedDisplayName(card, plugin.client.getLocalizedCard(card, language, Boolean(entry.set)))
+			: entry.name,
+	);
 }
 
 function unionColorIdentity(cards: ScryfallCard[]): string[] {
@@ -252,6 +258,7 @@ function renderSection(
 	violations: Map<string, string[]>,
 	isCommanderDeck: boolean,
 	legalityFormat: LegalityFormat,
+	language: CardLanguage,
 ): void {
 	const sectionEl = parent.createDiv({ cls: `mtg-section mtg-section-${section.kind}` });
 	if (isLandSection(section)) sectionEl.addClass("mtg-section-lands");
@@ -269,6 +276,9 @@ function renderSection(
 	for (const resolved of section.entries) {
 		renderCardRow(list, resolved, {
 			preview: plugin.preview,
+			localizedCard: resolved.card
+				? plugin.client.getLocalizedCard(resolved.card, language, Boolean(resolved.entry.set))
+				: undefined,
 			symbology: plugin.symbology,
 			hoverDelayMs: plugin.settings.hoverDelayMs,
 			imageQuality: plugin.settings.imageQuality,
@@ -390,6 +400,33 @@ function collectPendingEntries(sections: ResolvedSection[]): ResolvedEntry[] {
 	return out;
 }
 
+interface LocalizationJob {
+	card: ScryfallCard;
+	preferExactPrinting: boolean;
+}
+
+function collectPendingLocalizedCards(
+	sections: ResolvedSection[],
+	plugin: MtgDecklistPlugin,
+	language: CardLanguage,
+): LocalizationJob[] {
+	const jobs: LocalizationJob[] = [];
+	const seen = new Set<string>();
+	for (const section of sections) {
+		for (const { entry, card } of section.entries) {
+			if (!card) continue;
+			const preferExactPrinting = Boolean(entry.set && entry.collectorNumber);
+			const key = localizedPrintingKey(card, language, preferExactPrinting);
+			if (!key || seen.has(key)) continue;
+			seen.add(key);
+			if (plugin.client.needsLocalization(card, language, preferExactPrinting)) {
+				jobs.push({ card, preferExactPrinting });
+			}
+		}
+	}
+	return jobs;
+}
+
 async function triggerAsyncWork(
 	parsed: ParsedDecklist,
 	container: HTMLElement,
@@ -402,7 +439,9 @@ async function triggerAsyncWork(
 
 	const symbologyMissing = !plugin.symbology.hasAny();
 	const pending = collectPendingEntries(sections);
-	if (!symbologyMissing && pending.length === 0) return;
+	const language = parsed.directives.language ?? plugin.settings.cardLanguage;
+	const localizations = collectPendingLocalizedCards(sections, plugin, language);
+	if (!symbologyMissing && pending.length === 0 && localizations.length === 0) return;
 
 	let changed = false;
 	if (symbologyMissing) {
@@ -415,6 +454,10 @@ async function triggerAsyncWork(
 		if (changed) {
 			await plugin.persistCacheIfDirty();
 			if (!isCancelled()) renderDeckView(parsed, container, plugin, options);
+			return;
+		}
+		if (localizations.length > 0) {
+			await localizePendingCards(parsed, container, plugin, localizations, options, isCancelled);
 		}
 		return;
 	}
@@ -461,6 +504,49 @@ async function triggerAsyncWork(
 	}
 
 	banner.remove();
+	if (localizations.length > 0) {
+		await localizePendingCards(parsed, container, plugin, localizations, options, isCancelled);
+	}
+}
+
+async function localizePendingCards(
+	parsed: ParsedDecklist,
+	container: HTMLElement,
+	plugin: MtgDecklistPlugin,
+	jobs: LocalizationJob[],
+	options: RenderDeckOptions,
+	isCancelled: () => boolean,
+): Promise<void> {
+	const banner = renderCardLoadingBanner(container, jobs.length);
+	let loaded = 0;
+	let completed = 0;
+	const language = parsed.directives.language ?? plugin.settings.cardLanguage;
+	const startedAt = Date.now();
+	banner.label.setText(`Localizing 0 / ${jobs.length} cards…`);
+
+	for (const job of jobs) {
+		if (isCancelled()) return;
+		const translated = await plugin.client.fetchLocalizedCard(job.card, language, job.preferExactPrinting);
+		if (isCancelled()) return;
+		completed++;
+		if (translated) loaded++;
+		banner.label.setText(`Localizing ${completed} / ${jobs.length} cards…`);
+		if (
+			loaded >= PROGRESS_RERENDER_MIN_NEW_CARDS &&
+			Date.now() - startedAt >= PROGRESS_RERENDER_MIN_INTERVAL_MS
+		) {
+			await plugin.persistCacheIfDirty();
+			if (!isCancelled()) renderDeckView(parsed, container, plugin, options);
+			return;
+		}
+	}
+
+	if (loaded > 0) {
+		await plugin.persistCacheIfDirty();
+		if (!isCancelled()) renderDeckView(parsed, container, plugin, options);
+	} else {
+		banner.remove();
+	}
 }
 
 interface CardLoadingBanner {

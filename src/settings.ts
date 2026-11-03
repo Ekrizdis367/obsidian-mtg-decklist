@@ -5,6 +5,7 @@ import { ARCHIDEKT_DEFAULT_TTL_MINUTES, MOXFIELD_DEFAULT_TTL_MINUTES } from "./u
 export type GroupingMode = "auto" | "manual" | "respect-manual";
 export type CardSortOrder = "source" | "name" | "cmc-name";
 export type ImageQuality = "small" | "normal" | "large";
+export type CardLanguage = "en" | "fr";
 export type LegalityFormat =
 	| "off"
 	| "standard"
@@ -20,6 +21,7 @@ export interface MtgDecklistSettings {
 	groupingMode: GroupingMode;
 	cardSortOrder: CardSortOrder;
 	imageQuality: ImageQuality;
+	cardLanguage: CardLanguage;
 	hoverDelayMs: number;
 	legalityFormat: LegalityFormat;
 	showStats: boolean;
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: MtgDecklistSettings = {
 	groupingMode: "respect-manual",
 	cardSortOrder: "name",
 	imageQuality: "normal",
+	cardLanguage: "en",
 	hoverDelayMs: 200,
 	legalityFormat: "off",
 	showStats: true,
@@ -96,6 +99,22 @@ export class MtgDecklistSettingTab extends PluginSettingTab {
 									.setValue(plugin.settings.cardSortOrder)
 									.onChange(async (value) => {
 										plugin.settings.cardSortOrder = value as CardSortOrder;
+										await plugin.saveSettings();
+									}),
+							);
+						},
+					},
+					{
+						name: "Card language",
+						desc: "Language for card names and preview images. French prints are used when available, otherwise English is shown. Reopen a note to refresh its decklists.",
+						render: (setting) => {
+							setting.addDropdown((dd) =>
+								dd
+									.addOption("en", "English (default)")
+									.addOption("fr", "Français")
+									.setValue(plugin.settings.cardLanguage)
+									.onChange(async (value) => {
+										plugin.settings.cardLanguage = value as CardLanguage;
 										await plugin.saveSettings();
 									}),
 							);

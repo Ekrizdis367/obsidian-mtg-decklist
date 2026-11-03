@@ -14,6 +14,7 @@ export const DEFAULT_SECTION_TITLE = "Deck";
 
 const VALID_GROUP_VALUES = new Set<DecklistDirectives["group"]>(["auto", "manual", "respect-manual"]);
 const VALID_SORT_VALUES = new Set<DecklistDirectives["sort"]>(["name", "cmc-name", "source"]);
+const VALID_LANGUAGE_VALUES = new Set(["en", "fr"]);
 const VALID_LEGALITY_VALUES = new Set<DecklistDirectives["legality"]>([
 	"off",
 	"standard",
@@ -51,6 +52,18 @@ function applyDirective(
 	lineNumber: number,
 	rawLine: string,
 ): boolean {
+	if (key === "language" || key === "lang") {
+		if (VALID_LANGUAGE_VALUES.has(value)) {
+			ctx.directives.language = value as "en" | "fr";
+		} else {
+			ctx.errors.push({
+				lineNumber,
+				rawLine,
+				message: 'Unsupported card language. Use "en" or "fr".',
+			});
+		}
+		return true;
+	}
 	if (key === "group" || key === "grouping") {
 		if (VALID_GROUP_VALUES.has(value as DecklistDirectives["group"])) {
 			ctx.directives.group = value as DecklistDirectives["group"];

@@ -9,7 +9,9 @@ import {
 	SCRYFALL_RETRY_MAX_ATTEMPTS,
 } from "../utils/constants";
 import { CardCache, normalizeCardName, printingKey } from "./cache";
+import { localizedPrintingKey } from "./localization";
 import type { ScryfallCard } from "./types";
+import type { CardLanguage } from "../settings";
 
 export class ScryfallClient {
 	private queue: Promise<unknown> = Promise.resolve();
@@ -24,6 +26,100 @@ export class ScryfallClient {
 
 	getCachedPrinting(set: string, collectorNumber: string): ScryfallCard | undefined {
 		return this.cache.getByKey(printingKey(set, collectorNumber));
+	}
+
+	getLocalizedCard(card: ScryfallCard, language: CardLanguage, preferExactPrinting = false): ScryfallCard | undefined {
+		const key = localizedPrintingKey(card, language, preferExactPrinting);
+		return key ? this.cache.getByKey(key) : undefined;
+	}
+
+	needsLocalization(card: ScryfallCard, language: CardLanguage, preferExactPrinting = false): boolean {
+		const key = localizedPrintingKey(card, language, preferExactPrinting);
+		return Boolean(key && !this.cache.getByKey(key) && !this.cache.hasNotFoundKey(key));
+	}
+
+	async fetchLocalizedCard(
+		card: ScryfallCard,
+		language: CardLanguage,
+		preferExactPrinting = false,
+	): Promise<ScryfallCard | null> {
+		const key = localizedPrintingKey(card, language, preferExactPrinting);
+		if (!key) return null;
+		const cached = this.cache.getByKey(key);
+		if (cached) return cached;
+		if (this.cache.hasNotFoundKey(key)) return null;
+		const existing = this.inflight.get(key);
+		if (existing) return existing;
+
+		const promise = this.enqueue(() => this.doFetchLocalized(card, language, preferExactPrinting, key));
+		this.inflight.set(key, promise);
+		try {
+			return await promise;
+		} finally {
+			this.inflight.delete(key);
+		}
+	}
+
+	private async doFetchLocalized(
+		card: ScryfallCard,
+		language: CardLanguage,
+		preferExactPrinting: boolean,
+		key: string,
+		attempt = 0,
+	): Promise<ScryfallCard | null> {
+		const urls: string[] = [];
+		if (preferExactPrinting && card.set && card.collector_number) {
+			urls.push(
+				`${SCRYFALL_CARDS_BASE}/${encodeURIComponent(card.set)}/${encodeURIComponent(card.collector_number)}/${language}`,
+			);
+		}
+		// Search by Oracle ID, never by the translated spelling. This preserves
+		// the same game object even when the translated card name is ambiguous.
+		const query = `oracleid:${card.oracle_id} lang:${language}`;
+		urls.push(`${SCRYFALL_CARDS_BASE}/search?q=${encodeURIComponent(query)}&unique=prints&order=released&dir=desc&include_multilingual=true`);
+
+		let transientFailure = false;
+		for (const [index, url] of urls.entries()) {
+			// A failed exact-print lookup may need a second Scryfall request.
+			// Respect the same minimum spacing used by the regular request queue.
+			if (index > 0) {
+				await sleep(SCRYFALL_REQUEST_SPACING_MS);
+				this.lastRequestAt = Date.now();
+			}
+			try {
+				const response = await requestUrl({
+					url,
+					method: "GET",
+					headers: { Accept: "application/json", "User-Agent": PLUGIN_USER_AGENT },
+					throw: false,
+				});
+				if (isThrottleStatus(response.status)) {
+					if (attempt >= SCRYFALL_RETRY_MAX_ATTEMPTS) return null;
+					await sleep(Math.max(parseRetryAfterMs(response.headers) ?? 0, backoffDelay(attempt)));
+					this.lastRequestAt = Date.now();
+					return this.doFetchLocalized(card, language, preferExactPrinting, key, attempt + 1);
+				}
+				if (response.status === 404) continue;
+				if (response.status < 200 || response.status >= 300) {
+					transientFailure = true;
+					continue;
+				}
+				const json = response.json as { data?: ScryfallCard[] } & Partial<ScryfallCard>;
+				const found: ScryfallCard | undefined = Array.isArray(json?.data)
+					? json.data[0]
+					: json?.id ? (json as ScryfallCard) : undefined;
+				if (found?.lang === language && found.oracle_id === card.oracle_id) {
+					this.cache.setByKey(key, found);
+					return found;
+				}
+			} catch (err) {
+				console.warn("[mtg-decklist] Scryfall localization request failed", url, err);
+				transientFailure = true;
+			}
+		}
+		// Cache a true absence for an hour, but retry temporary network failures.
+		if (!transientFailure) this.cache.markNotFoundKey(key);
+		return null;
 	}
 
 	async fetchCardBySet(set: string, collectorNumber: string): Promise<ScryfallCard | null> {

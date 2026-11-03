@@ -1,6 +1,7 @@
 import { useTouchCardUi } from "../utils/touch-ui";
 import type { ImageQuality } from "../settings";
 import type { ScryfallCard } from "../scryfall/types";
+import { localizedDisplayName } from "../scryfall/localization";
 
 const PREVIEW_MARGIN = 12;
 
@@ -44,7 +45,7 @@ export class CardPreview {
 			el.empty();
 			const img = el.createEl("img", { cls: "mtg-card-preview-img" });
 			img.src = url;
-			img.alt = card.name;
+			img.alt = localizedDisplayName(card, card);
 			this.currentImageUrl = url;
 		}
 
@@ -61,7 +62,7 @@ export class CardPreview {
 		const inner = overlay.createDiv({ cls: "mtg-card-preview-overlay-inner" });
 		const img = inner.createEl("img", { cls: "mtg-card-preview-img" });
 		img.src = url;
-		img.alt = card.name;
+		img.alt = localizedDisplayName(card, card);
 
 		if (card.scryfall_uri) {
 			const actions = inner.createDiv({ cls: "mtg-card-preview-tap-actions" });

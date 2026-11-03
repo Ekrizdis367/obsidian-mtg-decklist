@@ -8,6 +8,8 @@ import { legalityNote } from "./legality";
 import type { ResolvedEntry } from "./grouping";
 import { resolveCardTag } from "../utils/card-tags";
 import { useTouchCardUi } from "../utils/touch-ui";
+import { localizedDisplayName } from "../scryfall/localization";
+import type { ScryfallCard } from "../scryfall/types";
 
 const BASIC_LAND_NAMES = new Set([
 	"plains",
@@ -30,6 +32,7 @@ function isBasicLandName(name: string): boolean {
 
 export interface CardRowOptions {
 	preview: CardPreview;
+	localizedCard?: ScryfallCard;
 	symbology: SymbologyClient;
 	hoverDelayMs: number;
 	imageQuality: ImageQuality;
@@ -41,6 +44,8 @@ export interface CardRowOptions {
 
 export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts: CardRowOptions): void {
 	const { entry, card } = resolved;
+	const displayCard = opts.localizedCard ?? card;
+	const displayName = card ? localizedDisplayName(card, opts.localizedCard) : entry.name;
 
 	const row = parent.createDiv({ cls: "mtg-card-row" });
 
@@ -54,30 +59,30 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 	}
 
 	const nameEl = row.createSpan({ cls: "mtg-card-name" });
-	if (card?.scryfall_uri) {
+	if (displayCard?.scryfall_uri) {
 		if (useTouchCardUi()) {
 			const link = nameEl.createEl("a", {
-				text: card.name,
+				text: displayName,
 				href: "#",
 				cls: "mtg-card-link",
 			});
-			link.dataset.scryfallUri = card.scryfall_uri;
+			link.dataset.scryfallUri = displayCard.scryfall_uri;
 			link.addEventListener("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				opts.preview.show(card, link, opts.imageQuality);
+				opts.preview.show(displayCard, link, opts.imageQuality);
 			});
 		} else {
 			const link = nameEl.createEl("a", {
-				text: card.name,
-				href: card.scryfall_uri,
+				text: displayName,
+				href: displayCard.scryfall_uri,
 				cls: "mtg-card-link",
 			});
 			link.setAttribute("target", "_blank");
 			link.setAttribute("rel", "noopener");
 		}
 	} else if (card) {
-		nameEl.setText(card.name);
+		nameEl.setText(displayName);
 	} else {
 		nameEl.setText(entry.name);
 		nameEl.addClass("mtg-card-pending");
@@ -130,12 +135,12 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 	if (useTouchCardUi()) {
 		const onRowTap: EventListener = (e) => {
 			if ((e.target as HTMLElement | null)?.closest("a.mtg-card-link")) return;
-			opts.preview.show(card, row, opts.imageQuality);
+			opts.preview.show(displayCard ?? card, row, opts.imageQuality);
 		};
 		row.addClass("mtg-card-row-tappable");
 		opts.registerDom(row, "click", onRowTap);
 	} else {
-		const debounced = debounce(() => opts.preview.show(card, row, opts.imageQuality), opts.hoverDelayMs);
+		const debounced = debounce(() => opts.preview.show(displayCard ?? card, row, opts.imageQuality), opts.hoverDelayMs);
 		const onEnter: EventListener = () => debounced.call();
 		const onLeave: EventListener = () => {
 			debounced.cancel();
