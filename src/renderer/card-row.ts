@@ -3,11 +3,12 @@ import { renderCardManaCost, renderManaCost } from "../ui/mana-symbols";
 import type { CardPreview } from "../ui/card-preview";
 import type { SymbologyClient } from "../scryfall/symbology";
 import { debounce } from "../utils/debounce";
-import type { ImageQuality, LegalityFormat } from "../settings";
+import type { CardLanguage, ImageQuality, LegalityFormat } from "../settings";
 import { legalityNote } from "./legality";
 import type { ResolvedEntry } from "./grouping";
 import { resolveCardTag } from "../utils/card-tags";
 import { useTouchCardUi } from "../utils/touch-ui";
+import { t } from "../utils/i18n";
 import { localizedDisplayName } from "../scryfall/localization";
 import type { ScryfallCard } from "../scryfall/types";
 
@@ -32,6 +33,7 @@ function isBasicLandName(name: string): boolean {
 
 export interface CardRowOptions {
 	preview: CardPreview;
+	uiLanguage?: CardLanguage;
 	localizedCard?: ScryfallCard;
 	symbology: SymbologyClient;
 	hoverDelayMs: number;
@@ -95,7 +97,9 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 	if (opts.colorIdentityViolation && opts.colorIdentityViolation.length > 0) {
 		const warn = nameEl.createSpan({ cls: "mtg-card-warning mtg-card-warning-ci" });
 		setIcon(warn, "triangle-alert");
-		const label = `Outside commander color identity: ${opts.colorIdentityViolation.join("")}`;
+		const label = t(opts.uiLanguage ?? "en", "Outside commander color identity: {colors}", {
+			colors: opts.colorIdentityViolation.join(""),
+		});
 		warn.setAttribute("title", label);
 		warn.setAttribute("aria-label", label);
 	}
@@ -107,8 +111,8 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 			const badge = tagsEl.createSpan({ cls: `mtg-card-tag mtg-card-tag-${tag.id}` });
 			if (tag.custom) badge.addClass("mtg-card-tag-custom");
 			setIcon(badge, tag.icon);
-			badge.setAttribute("title", tag.label);
-			badge.setAttribute("aria-label", tag.label);
+			badge.setAttribute("title", t(opts.uiLanguage ?? "en", tag.label));
+			badge.setAttribute("aria-label", t(opts.uiLanguage ?? "en", tag.label));
 		}
 	} else {
 		const placeholder = tagsEl.createSpan({ cls: "mtg-card-tag mtg-card-tag-placeholder" });
@@ -122,7 +126,7 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 		renderManaCost(row, entry.hints.mana_cost, opts.symbology);
 	}
 
-	const note = card ? legalityNote(card, opts.legalityFormat) : null;
+	const note = card ? legalityNote(card, opts.legalityFormat, opts.uiLanguage ?? "en") : null;
 	if (note) {
 		const warn = row.createSpan({ cls: "mtg-card-warning mtg-card-warning-legality" });
 		setIcon(warn, "ban");

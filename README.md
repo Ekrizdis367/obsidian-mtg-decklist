@@ -24,7 +24,7 @@ Inline mana symbols and hoverable card links in a regular note:
 - **Auto grouping** – Group cards automatically by type (Commander, Creature, Instant, Sorcery, Artifact, Enchantment, Planeswalker, Land, …) or honour your own `# Section` headers.
 - **Sorting** – Sort within each section by name, by CMC then name, or keep the order you typed.
 - **Card previews** – Hover (desktop) or tap (mobile) any card name for a full Scryfall image preview. On mobile, inline card taps show the preview only; use **Open on Scryfall** in the overlay to open the site (avoids the browser stealing the tap).
-- **French card names and previews** – Opt in to French card names and matching French card art, with a fallback to English for cards that have no French printing. The default remains English.
+- **French card names, previews and interface** – Opt in to French names, matching art, headings, statistics, combo labels and settings. Fall back to English for cards without a French printing; the default remains English.
 - **Color identity & legality warnings** – Inline icons flag cards that break the deck's color identity or are not legal in your chosen format.
 - **Card role tags** – Manually tag cards with roles like `#ramp`, `#draw`, `#removal`, `#boardwipe`, `#counterspell`, `#wincon` (and your own custom tags) — each shows up as a small coloured icon next to the card name.
 - **Specific printings** – Pin a card to one exact printing with `(SET) NUMBER` syntax (e.g. `1 Ancient Den (MRD) 278`), the same style Moxfield and MTGO exports use — the card and its image preview use that printing.
@@ -121,8 +121,8 @@ Each line inside a ` ```decklist ` block is one of:
 | `# Creatures` | A manual section header. |
 | `# Commander` (or `# Commanders`) | Marks the cards under it as the deck's commander(s). |
 | `# Deck` | The default "main deck" section — useful right after `# Commander` to push remaining cards back into the auto-grouped pool. |
-| `# Sideboard` (or `# SB`, `# Side`) | A sideboard section. |
-| `# Maybeboard` (or `# Maybe`) | A maybeboard section. |
+| `# Sideboard` (or `# SB`, `# Side`, `# Réserve`) | A sideboard section. |
+| `# Maybeboard` (or `# Maybe`, `# Cartes envisagées`) | A maybeboard section. |
 | `// note` | A comment, ignored by the parser. |
 | Blank line | Section break (purely cosmetic). |
 
@@ -221,7 +221,7 @@ When `legality` is set (and not `off`), commander decks also warn on cards outsi
 
 ### Card languages (English and French)
 
-Use **Settings → MTG Decklist → Card language** to select English (default) or Français. To override the language for an individual deck, add a directive before any card or section headers:
+Use **Settings → MTG Decklist → Card language** to select English (default) or Français. This also localizes the plugin's user interface, including section headings (e.g. Sideboard → Réserve, Land → Terrain), statistics, combo labels, settings, tooltips, export dialogs and notices. To override the language for an individual deck, add a directive before any card or section headers:
 
 ````markdown
 ```decklist
@@ -238,9 +238,11 @@ legality: modern
 ```
 ````
 
-Card names in the source decklist should remain in their normal **English/Oracle form** for reliable imports, exports, legality checks and card matching. In French mode, the rendered names and hover/tap preview images use French printings when Scryfall provides them; otherwise the existing English representation is retained. If you pin a printing with `(SET) NUMBER`, the same French printing is preferred; when unavailable, another French printing may be used.
+Card names in the source decklist should remain in their normal **English/Oracle form** for reliable imports, exports, legality checks and card matching. In French mode, the rendered names and hover/tap preview images use French printings when Scryfall provides them; otherwise the existing English representation is retained. Without a pinned printing, the plugin prefers a French printing with a true high-resolution scan over a more recent low-resolution scan. If you pin a printing with `(SET) NUMBER`, the exact French printing is preferred even if its scan is lower-quality; when unavailable, another French printing may be used.
 
-The language setting does **not** translate the rest of the plugin interface or the current Oracle text; the card images reflect the text as printed in that language. Inline `mtg:Card Name` links follow the **global** language setting; custom Markdown link labels such as `[Foudre](mtg:Lightning Bolt)` remain untouched. Reopen the note after changing the global language setting to refresh already-rendered decklists.
+**Image quality:** The global preview setting supports `small`, `normal`, `large`, and now `png` (up to 745 × 1040 px). PNG avoids additional JPEG compression but cannot restore detail to an inherently low-resolution scan. The plugin does not stretch or synthesize missing art.
+
+The card images reflect the text printed in that language; the canonical English/Oracle data still drives rules and legality. Source syntax and exports remain in English for interoperability, though `# Réserve`, `# Commandant`, and `# Cartes envisagées` are accepted as section aliases. A few French aliases are also accepted in combo block keys (e.g. `nom:`, `résultat:`, `étapes:`, `boucle:`). User-authored content is never machine-translated. Inline `mtg:Card Name` links follow the **global** language setting; custom Markdown link labels such as `[Foudre](mtg:Lightning Bolt)` remain untouched. Reopen notes to refresh decklists after changing the language setting, and reload the plugin to refresh command names in Obsidian's command palette.
 
 ## Loading from Moxfield
 
@@ -450,7 +452,7 @@ Available under **Settings → Community plugins → MTG Decklist**:
 
 - **Grouping mode** – `Respect manual, fall back to auto` (default), `Auto (by card type)`, or `Manual (only your headers)`.
 - **Sort within group** – `Name (alphabetical)` (default), `CMC, then name`, or `Source (as typed)`.
-- **Image quality** – Size of card preview images: `Small`, `Normal`, `Large`.
+- **Image quality** – Size of card preview images: `Small`, `Normal`, `Large`, `PNG (highest quality)`.
 - **Hover delay (ms)** – Delay before previews appear on desktop hover.
 - **Collapse sideboard by default** – Sideboard and maybeboard sections start collapsed.
 - **Show deck stats** – Toggle the mana curve / colors / types panel below decklists.

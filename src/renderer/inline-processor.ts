@@ -4,6 +4,7 @@ import { renderManaCost } from "../ui/mana-symbols";
 import { debounce } from "../utils/debounce";
 import type { ScryfallCard } from "../scryfall/types";
 import { localizedDisplayName } from "../scryfall/localization";
+import { t } from "../utils/i18n";
 
 const MANA_TOKEN_RE = /\{([A-Za-z0-9/]+)\}/g;
 const SKIP_TAGS = new Set(["CODE", "PRE", "SCRIPT", "STYLE", "TEXTAREA", "A"]);
@@ -153,7 +154,8 @@ export function attachCardBehavior(
 			delete el.dataset.scryfallUri;
 		}
 		const name = localizedDisplayName(card, translated);
-		el.setAttribute("title", card.type_line ? `${name} — ${card.type_line}` : name);
+		const typeLine = translated?.printed_type_line ?? card.type_line;
+		el.setAttribute("title", typeLine ? `${name} — ${typeLine}` : name);
 	};
 
 	let cached = plugin.client.getCached(cardName) ?? null;
@@ -161,7 +163,7 @@ export function attachCardBehavior(
 		updateFromCard(cached);
 	} else {
 		el.addClass("mtg-card-pending");
-		el.setAttribute("title", `Loading ${cardName}…`);
+		el.setAttribute("title", t(plugin.settings.cardLanguage, "Loading {name}…", { name: cardName }));
 	}
 
 	const ensureCard = async (): Promise<ScryfallCard | null> => {
@@ -170,7 +172,7 @@ export function attachCardBehavior(
 			if (!fetched) {
 				el.removeClass("mtg-card-pending");
 				el.addClass("mtg-card-not-found");
-				el.setAttribute("title", `Card not found: ${cardName}`);
+				el.setAttribute("title", t(plugin.settings.cardLanguage, "Card not found: {name}", { name: cardName }));
 				return null;
 			}
 			cached = fetched;

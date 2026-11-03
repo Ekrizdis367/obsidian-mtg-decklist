@@ -19,6 +19,7 @@ import { ArchidektClient } from "./archidekt/client";
 import type { CachedArchidektDeck } from "./archidekt/types";
 import { extractArchidektId } from "./archidekt/url";
 import { DeckExportModal } from "./ui/deck-export-modal";
+import { t } from "./utils/i18n";
 
 interface PersistedData {
 	settings: MtgDecklistSettings;
@@ -45,7 +46,7 @@ export default class MtgDecklistPlugin extends Plugin {
 		this.client = new ScryfallClient(this.cardCache);
 		this.moxfield = new MoxfieldClient(data?.moxfield ?? {});
 		this.archidekt = new ArchidektClient(data?.archidekt ?? {});
-		this.preview = new CardPreview();
+		this.preview = new CardPreview(() => this.settings.cardLanguage);
 
 		this.registerMarkdownCodeBlockProcessor(DECKLIST_BLOCK_LANG, createDecklistProcessor(this));
 		this.registerMarkdownCodeBlockProcessor(COMBO_BLOCK_LANG, createComboProcessor(this));
@@ -60,16 +61,16 @@ export default class MtgDecklistPlugin extends Plugin {
 
 		this.addCommand({
 			id: "clear-card-cache",
-			name: "Clear card cache",
+			name: t(this.settings.cardLanguage, "Clear card cache"),
 			callback: async () => {
 				await this.clearCardCache();
-				new Notice("Card cache cleared");
+					new Notice(t(this.settings.cardLanguage, "Card cache cleared"));
 			},
 		});
 
 		this.addCommand({
 			id: "insert-decklist-template",
-			name: "Insert decklist template at cursor",
+			name: t(this.settings.cardLanguage, "Insert decklist template at cursor"),
 			editorCallback: (editor: Editor, _view: MarkdownView) => {
 				editor.replaceSelection(DECKLIST_TEMPLATE);
 			},
@@ -77,45 +78,45 @@ export default class MtgDecklistPlugin extends Plugin {
 
 		this.addCommand({
 			id: "copy-decklist-as-moxfield",
-			name: "Moxfield: export decklist under cursor as text",
+			name: t(this.settings.cardLanguage, "Moxfield: export decklist under cursor as text"),
 			editorCheckCallback: (checking, editor) =>
-				this.exportDecklistUnderCursor(editor, checking, (parsed) => toMoxfieldText(parsed), "Moxfield export"),
+				this.exportDecklistUnderCursor(editor, checking, (parsed) => toMoxfieldText(parsed), t(this.settings.cardLanguage, "Moxfield export")),
 		});
 
 		this.addCommand({
 			id: "copy-decklist-as-arena",
-			name: "Arena: export decklist under cursor as import",
+			name: t(this.settings.cardLanguage, "Arena: export decklist under cursor as import"),
 			editorCheckCallback: (checking, editor) =>
-				this.exportDecklistUnderCursor(editor, checking, (parsed) => toArenaImport(parsed), "Arena export"),
+				this.exportDecklistUnderCursor(editor, checking, (parsed) => toArenaImport(parsed), t(this.settings.cardLanguage, "Arena export")),
 		});
 
 		this.addCommand({
 			id: "refresh-moxfield-deck",
-			name: "Moxfield: refresh deck under cursor",
+			name: t(this.settings.cardLanguage, "Moxfield: refresh deck under cursor"),
 			editorCheckCallback: (checking, editor) => this.refreshMoxfieldUnderCursor(editor, checking),
 		});
 
 		this.addCommand({
 			id: "clear-moxfield-cache",
-			name: "Moxfield: clear deck cache",
+			name: t(this.settings.cardLanguage, "Moxfield: clear deck cache"),
 			callback: async () => {
 				await this.clearMoxfieldCache();
-				new Notice("Moxfield cache cleared");
+					new Notice(t(this.settings.cardLanguage, "Moxfield cache cleared"));
 			},
 		});
 
 		this.addCommand({
 			id: "refresh-archidekt-deck",
-			name: "Archidekt: refresh deck under cursor",
+			name: t(this.settings.cardLanguage, "Archidekt: refresh deck under cursor"),
 			editorCheckCallback: (checking, editor) => this.refreshArchidektUnderCursor(editor, checking),
 		});
 
 		this.addCommand({
 			id: "clear-archidekt-cache",
-			name: "Archidekt: clear deck cache",
+			name: t(this.settings.cardLanguage, "Archidekt: clear deck cache"),
 			callback: async () => {
 				await this.clearArchidektCache();
-				new Notice("Archidekt cache cleared");
+					new Notice(t(this.settings.cardLanguage, "Archidekt cache cleared"));
 			},
 		});
 	}
@@ -178,7 +179,7 @@ export default class MtgDecklistPlugin extends Plugin {
 		if (checking) return true;
 		this.moxfield.invalidate(id);
 		void this.persist();
-		new Notice("Moxfield deck cache cleared. Reopen the note or switch modes to refetch.");
+		new Notice(t(this.settings.cardLanguage, "Moxfield deck cache cleared. Reopen the note or switch modes to refetch."));
 		return true;
 	}
 
@@ -190,7 +191,7 @@ export default class MtgDecklistPlugin extends Plugin {
 		if (checking) return true;
 		this.archidekt.invalidate(id);
 		void this.persist();
-		new Notice("Archidekt deck cache cleared. Reopen the note or switch modes to refetch.");
+		new Notice(t(this.settings.cardLanguage, "Archidekt deck cache cleared. Reopen the note or switch modes to refetch."));
 		return true;
 	}
 
@@ -204,7 +205,7 @@ export default class MtgDecklistPlugin extends Plugin {
 		if (!block) return false;
 		if (checking) return true;
 		const parsed = parseDecklist(block);
-		new DeckExportModal(this.app, title, transform(parsed), editor).open();
+		new DeckExportModal(this.app, title, transform(parsed), editor, this.settings.cardLanguage).open();
 		return true;
 	}
 }

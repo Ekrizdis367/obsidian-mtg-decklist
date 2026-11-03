@@ -9,7 +9,7 @@ import {
 	SCRYFALL_RETRY_MAX_ATTEMPTS,
 } from "../utils/constants";
 import { CardCache, normalizeCardName, printingKey } from "./cache";
-import { localizedPrintingKey } from "./localization";
+import { bestLocalizedPrint, localizedPrintingKey } from "./localization";
 import type { ScryfallCard } from "./types";
 import type { CardLanguage } from "../settings";
 
@@ -105,9 +105,9 @@ export class ScryfallClient {
 					continue;
 				}
 				const json = response.json as { data?: ScryfallCard[] } & Partial<ScryfallCard>;
-				const found: ScryfallCard | undefined = Array.isArray(json?.data)
-					? json.data[0]
-					: json?.id ? (json as ScryfallCard) : undefined;
+				const found: ScryfallCard | null = Array.isArray(json?.data)
+					? bestLocalizedPrint(json.data, language, card.oracle_id ?? "")
+					: json?.id ? (json as ScryfallCard) : null;
 				if (found?.lang === language && found.oracle_id === card.oracle_id) {
 					this.cache.setByKey(key, found);
 					return found;

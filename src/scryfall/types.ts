@@ -11,6 +11,7 @@ export interface ScryfallCardFace {
 	name?: string;
 	printed_name?: string;
 	printed_text?: string;
+	printed_type_line?: string;
 	mana_cost?: string;
 	type_line?: string;
 	oracle_text?: string;
@@ -45,8 +46,11 @@ export interface ScryfallCard {
 	oracle_id?: string;
 	name: string;
 	lang?: string;
+	highres_image?: boolean;
+	image_status?: "missing" | "placeholder" | "lowres" | "highres_scan";
 	printed_name?: string;
 	printed_text?: string;
+	printed_type_line?: string;
 	mana_cost?: string;
 	cmc?: number;
 	type_line?: string;

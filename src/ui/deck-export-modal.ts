@@ -1,4 +1,6 @@
 import { App, Editor, Modal, Notice } from "obsidian";
+import type { CardLanguage } from "../settings";
+import { t } from "../utils/i18n";
 
 export class DeckExportModal extends Modal {
 	constructor(
@@ -6,6 +8,7 @@ export class DeckExportModal extends Modal {
 		private readonly title: string,
 		private readonly content: string,
 		private readonly editor: Editor | null,
+		private readonly language: CardLanguage = "en",
 	) {
 		super(app);
 	}
@@ -17,7 +20,7 @@ export class DeckExportModal extends Modal {
 		const { contentEl } = this;
 		contentEl.createEl("p", {
 			cls: "mtg-export-modal-hint",
-			text: "Select the text below and copy with your system shortcut, or insert it at the cursor.",
+			text: t(this.language, "Select the text below and copy with your system shortcut, or insert it at the cursor."),
 		});
 
 		const preview = contentEl.createEl("textarea", {
@@ -30,15 +33,15 @@ export class DeckExportModal extends Modal {
 		const footer = contentEl.createDiv({ cls: "mtg-export-modal-footer" });
 
 		if (this.editor) {
-			footer.createEl("button", { text: "Insert at cursor", attr: { type: "button" } })
+			footer.createEl("button", { text: t(this.language, "Insert at cursor"), attr: { type: "button" } })
 				.addEventListener("click", () => {
 					this.editor!.replaceSelection(this.content);
-					new Notice("Export inserted at cursor.");
+					new Notice(t(this.language, "Export inserted at cursor."));
 					this.close();
 				});
 		}
 
-		footer.createEl("button", { text: "Close", attr: { type: "button" } }).addEventListener("click", () => {
+		footer.createEl("button", { text: t(this.language, "Close"), attr: { type: "button" } }).addEventListener("click", () => {
 			this.close();
 		});
 	}

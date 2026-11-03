@@ -2,10 +2,13 @@ import { useTouchCardUi } from "../utils/touch-ui";
 import type { ImageQuality } from "../settings";
 import type { ScryfallCard } from "../scryfall/types";
 import { localizedDisplayName } from "../scryfall/localization";
+import type { CardLanguage } from "../settings";
+import { t } from "../utils/i18n";
 
 const PREVIEW_MARGIN = 12;
 
 export class CardPreview {
+	constructor(private readonly currentLanguage: () => CardLanguage = () => "en") {}
 	private el: HTMLElement | null = null;
 	private overlay: HTMLElement | null = null;
 	private currentImageUrl: string | null = null;
@@ -26,8 +29,9 @@ export class CardPreview {
 	}
 
 	private pickImageUrl(card: ScryfallCard, quality: ImageQuality): string | null {
-		const fromUris = (uris?: { small?: string; normal?: string; large?: string }) => {
+		const fromUris = (uris?: { small?: string; normal?: string; large?: string; png?: string }) => {
 			if (!uris) return null;
+			if (quality === "png") return uris.png ?? uris.large ?? uris.normal ?? uris.small ?? null;
 			return uris[quality] ?? uris.normal ?? uris.large ?? uris.small ?? null;
 		};
 		const direct = fromUris(card.image_uris);
@@ -68,7 +72,7 @@ export class CardPreview {
 			const actions = inner.createDiv({ cls: "mtg-card-preview-tap-actions" });
 			const open = actions.createEl("a", {
 				cls: "mtg-card-preview-open-scryfall",
-				text: "Open in browser",
+				text: t(this.currentLanguage(), "Open in browser"),
 				href: card.scryfall_uri,
 			});
 			open.setAttribute("target", "_blank");

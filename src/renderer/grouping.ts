@@ -70,7 +70,7 @@ function shouldUseAuto(parsed: ParsedDecklist, mode: GroupingMode): boolean {
 	// don't disable auto-grouping, so a deck can specify `# Commander` and still get the rest
 	// auto-grouped by type.
 	const hasCustomGroups = parsed.sections.some(
-		(s) => s.kind === "general" && s.title !== DEFAULT_SECTION_TITLE,
+		(s) => s.kind === "general" && ![DEFAULT_SECTION_TITLE.toLowerCase(), "deck principal"].includes(s.title.toLowerCase()),
 	);
 	return !hasCustomGroups;
 }

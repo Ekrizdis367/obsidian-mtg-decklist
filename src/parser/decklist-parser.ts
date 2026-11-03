@@ -148,15 +148,20 @@ function resolveRemoteSource(rawValue: string): RemoteSource | null {
 const SPECIAL_SECTIONS: Record<string, SectionKind> = {
 	commander: "commander",
 	commanders: "commander",
+	commandant: "commander",
+	commandants: "commander",
 	sideboard: "sideboard",
 	side: "sideboard",
 	sb: "sideboard",
+	reserve: "sideboard",
 	maybeboard: "maybeboard",
 	maybe: "maybeboard",
+	"cartes envisagees": "maybeboard",
+	"cartes a essayer": "maybeboard",
 };
 
 function classifySection(title: string): SectionKind {
-	const key = title.trim().toLowerCase();
+	const key = title.trim().toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 	return SPECIAL_SECTIONS[key] ?? "general";
 }
 

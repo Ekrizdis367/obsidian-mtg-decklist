@@ -18,7 +18,7 @@ async function loadTypeScript(relativePath) {
 			setup(build) {
 				build.onResolve({ filter: /^obsidian$/ }, () => ({ path: "obsidian", namespace: "test" }));
 				build.onLoad({ filter: /.*/, namespace: "test" }, () => ({
-					contents: "export const requestUrl = (options) => globalThis.__testScryfallRequest(options);",
+					contents: "export const requestUrl = (options) => globalThis.__testScryfallRequest(options); export const Platform = { isMobile: false, isMobileApp: false };",
 					loader: "js",
 				}));
 			},
@@ -68,14 +68,90 @@ test("decklist accepts language override without disturbing sideboard parsing", 
 	const invalid = parseDecklist("language: xx\n4 Lightning Bolt");
 	assert.equal(invalid.directives.language, undefined);
 	assert.equal(invalid.errors.length, 1);
+
+	const french = parseDecklist("language: fr\n# Deck principal\n4 Lightning Bolt\n# Réserve\n2 Pyroclasm\n# Cartes envisagées\n1 Browbeat");
+	assert.equal(french.errors.length, 0);
+	assert.equal(french.totalCards, 4);
+	assert.deepEqual(french.sections.map((s) => s.kind), ["general", "sideboard", "maybeboard"]);
 });
 
 test("localized cache keys distinguish English, French and exact printings", async () => {
 	const { localizedPrintingKey } = await loadTypeScript("src/scryfall/localization.ts");
 	assert.equal(localizedPrintingKey(canonical, "en", false), null);
-	assert.equal(localizedPrintingKey(canonical, "fr", false), "localized:fr:oracle:oracle-123");
-	assert.equal(localizedPrintingKey(canonical, "fr", true), "localized:fr:set:m10:123");
+	assert.equal(localizedPrintingKey(canonical, "fr", false), "localized:v2:fr:oracle:oracle-123");
+	assert.equal(localizedPrintingKey(canonical, "fr", true), "localized:v2:fr:set:m10:123");
 	assert.equal(localizedPrintingKey({ ...canonical, oracle_id: undefined }, "fr", true), null);
+});
+
+test("localization selects high-resolution French scans and respects language matching", async () => {
+	const { bestLocalizedPrint } = await loadTypeScript("src/scryfall/localization.ts");
+	const prints = [
+		{ ...french, id: "fr-recent", image_status: "lowres" },
+		{ ...french, id: "wrong-oracle", oracle_id: "other", image_status: "highres_scan" },
+		{ ...french, id: "en-large", lang: "en", image_status: "highres_scan" },
+		{ ...french, id: "fr-old", image_status: "highres_scan", highres_image: true },
+	];
+	assert.equal(bestLocalizedPrint(prints, "fr", "oracle-123").id, "fr-old");
+	assert.equal(bestLocalizedPrint(prints.slice(0, 1), "fr", "oracle-123").id, "fr-recent");
+	assert.equal(bestLocalizedPrint(prints, "fr", "not-found"), null);
+});
+
+test("UI strings and semantic section labels are localized without changing source identifiers", async () => {
+	const { t, translatedSection, translatedError } = await loadTypeScript("src/utils/i18n.ts");
+	assert.equal(t("fr", "Land"), "Terrain");
+	assert.equal(t("fr", "Creature"), "Créature");
+	assert.equal(t("fr", "Mana curve"), "Courbe de mana");
+	assert.equal(t("fr", "Cards by color"), "Cartes par couleur");
+	assert.equal(t("fr", "Loading 0 / {total} cards…", { total: 40 }), "Chargement de 0 / 40 cartes…");
+	assert.equal(t("en", "Land"), "Land");
+	assert.equal(translatedSection("fr", "Sideboard", "sideboard"), "Réserve");
+	assert.equal(translatedSection("fr", "SB", "sideboard"), "Réserve");
+	assert.equal(translatedSection("fr", "Lands", "general"), "Terrains");
+	assert.equal(translatedSection("fr", "My creatures", "general"), "My creatures");
+	assert.equal(translatedError("fr", "Line 4: unknown key \"bad\""), "Ligne 4 : Clé inconnue \"bad\"");
+	assert.equal(translatedError("fr", "Deck not found on Moxfield."), "Deck introuvable sur Moxfield.");
+});
+
+test("French section headings keep automatic grouping and sideboard classification", async () => {
+	const { parseDecklist } = await loadTypeScript("src/parser/decklist-parser.ts");
+	const { buildResolvedSections } = await loadTypeScript("src/renderer/grouping.ts");
+	const parsed = parseDecklist("language: fr\n# Deck principal\n4 Lightning Bolt\n4 Mountain\n# Réserve\n2 Pyroclasm");
+	const resolved = buildResolvedSections(parsed, "respect-manual", "source", {
+		byName: (name) => name === "Lightning Bolt"
+			? { ...canonical, type_line: "Instant" }
+			: name === "Mountain"
+				? { ...canonical, type_line: "Basic Land — Mountain" }
+				: undefined,
+		byPrinting: () => undefined,
+	});
+	assert.deepEqual(resolved.map((s) => s.title), ["Instant", "Land", "Réserve"]);
+	assert.equal(resolved[2].kind, "sideboard");
+});
+
+test("PNG preview picks the highest-resolution Scryfall asset when available", async () => {
+	const { CardPreview } = await loadTypeScript("src/ui/card-preview.ts");
+	const preview = new CardPreview();
+	const card = {
+		...french,
+		image_uris: { small: "small.jpg", normal: "normal.jpg", large: "large.jpg", png: "full.png" },
+	};
+	assert.equal(preview.pickImageUrl(card, "normal"), "normal.jpg");
+	assert.equal(preview.pickImageUrl(card, "large"), "large.jpg");
+	assert.equal(preview.pickImageUrl(card, "png"), "full.png");
+	assert.equal(preview.pickImageUrl({ ...card, image_uris: { normal: "normal.jpg" } }, "png"), "normal.jpg");
+});
+
+test("French combo input keys remain backward compatible with English syntax", async () => {
+	const { parseCombo } = await loadTypeScript("src/parser/combo-parser.ts");
+	const combo = parseCombo("nom: Combo Piou\nrésultat: victoire\nétapes:\n  - Jouer la créature\nboucle:\n  - Engager\nsortie:\n  - Arrêter");
+	assert.equal(combo.name, "Combo Piou");
+	assert.equal(combo.result, "victoire");
+	assert.equal(combo.steps.length, 1);
+	assert.equal(combo.loops[0].loop.length, 1);
+	assert.equal(combo.loops[0].breaks.length, 1);
+	assert.equal(combo.errors.length, 0);
+	const english = parseCombo("name: Untap combo\nsteps:\n  - Cast a spell");
+	assert.equal(english.errors.length, 0);
 });
 
 test("localized display names fall back safely and handle split cards", async () => {

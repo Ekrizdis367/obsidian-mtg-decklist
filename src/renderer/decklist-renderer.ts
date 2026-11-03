@@ -10,6 +10,8 @@ import { moxfieldDeckUrl } from "../moxfield/url";
 import { translateArchidektDeck } from "../archidekt/translator";
 import { ArchidektFetchError } from "../archidekt/types";
 import { archidektDeckUrl } from "../archidekt/url";
+import type { CardLanguage } from "../settings";
+import { t, translatedError } from "../utils/i18n";
 
 export function createDecklistProcessor(plugin: MtgDecklistPlugin) {
 	return (source: string, el: HTMLElement, _ctx: MarkdownPostProcessorContext): void => {
@@ -31,19 +33,24 @@ async function renderRemoteDeck(
 ): Promise<void> {
 	container.empty();
 	container.addClass("mtg-decklist", "mtg-decklist-remote");
+	const language: CardLanguage = parsedShell.directives.language ?? plugin.settings.cardLanguage;
 
 	if (parsedShell.errors.length > 0) {
 		const errBox = container.createDiv({ cls: "mtg-decklist-errors" });
-		errBox.createDiv({ cls: "mtg-decklist-errors-title", text: "Decklist parse warnings" });
+		errBox.createDiv({ cls: "mtg-decklist-errors-title", text: t(language, "Decklist parse warnings") });
 		for (const err of parsedShell.errors) {
 			errBox.createDiv({
 				cls: "mtg-decklist-error",
-				text: `Line ${err.lineNumber}: ${err.message} (${err.rawLine.trim()})`,
+				text: t(language, "Line {number}: {message} ({raw})", {
+					number: err.lineNumber,
+					message: translatedError(language, err.message),
+					raw: err.rawLine.trim(),
+				}),
 			});
 		}
 	}
 
-	renderRemoteLoadingState(container, source);
+	renderRemoteLoadingState(container, source, language);
 
 	try {
 		const { translated, deckName } = await fetchAndTranslate(source, plugin, options.force === true);
@@ -74,9 +81,9 @@ async function renderRemoteDeck(
 			},
 		});
 	} catch (err) {
-		renderRemoteError(container, source, err, () => {
+			renderRemoteError(container, source, err, () => {
 			void renderRemoteDeck(parsedShell, source, container, plugin, { force: true });
-		});
+			}, language);
 	}
 }
 
@@ -93,13 +100,13 @@ async function fetchAndTranslate(
 	return { translated: translateMoxfieldDeck(deck), deckName: deck.name };
 }
 
-function renderRemoteLoadingState(container: HTMLElement, source: RemoteSource): void {
+function renderRemoteLoadingState(container: HTMLElement, source: RemoteSource, language: CardLanguage): void {
 	const wrap = container.createDiv({ cls: "mtg-decklist-loading-state" });
 	const spinner = wrap.createSpan({ cls: "mtg-decklist-loading-spinner" });
 	setIcon(spinner, "loader");
 	const text = wrap.createSpan({ cls: "mtg-decklist-loading-text" });
 	const sourceLabel = source.kind === "archidekt" ? "Archidekt" : "Moxfield";
-	text.setText(`Loading deck from ${sourceLabel} (${source.id})…`);
+	text.setText(t(language, "Loading deck from {source} ({id})…", { source: sourceLabel, id: source.id }));
 }
 
 function renderRemoteError(
@@ -107,6 +114,7 @@ function renderRemoteError(
 	source: RemoteSource,
 	err: unknown,
 	onRetry: () => void,
+	language: CardLanguage,
 ): void {
 	container.empty();
 	container.addClass("mtg-decklist", "mtg-decklist-remote", "mtg-decklist-remote-error");
@@ -117,7 +125,7 @@ function renderRemoteError(
 	const head = box.createDiv({ cls: "mtg-decklist-remote-error-head" });
 	const icon = head.createSpan({ cls: "mtg-decklist-remote-error-icon" });
 	setIcon(icon, "triangle-alert");
-	head.createSpan({ cls: "mtg-decklist-remote-error-title", text: `Couldn't load ${sourceLabel} deck` });
+	head.createSpan({ cls: "mtg-decklist-remote-error-title", text: t(language, "Couldn't load {source} deck", { source: sourceLabel }) });
 
 	const detail =
 		err instanceof MoxfieldFetchError || err instanceof ArchidektFetchError
@@ -125,17 +133,17 @@ function renderRemoteError(
 			: err instanceof Error
 				? err.message
 				: String(err);
-	box.createDiv({ cls: "mtg-decklist-remote-error-detail", text: detail });
+	box.createDiv({ cls: "mtg-decklist-remote-error-detail", text: translatedError(language, detail) });
 
 	const meta = box.createDiv({ cls: "mtg-decklist-remote-error-meta" });
 	const link = meta.createEl("a", {
-		text: `${sourceLabel}: open deck`,
+		text: t(language, "{source}: open deck", { source: sourceLabel }),
 		href: source.kind === "archidekt" ? archidektDeckUrl(source.id) : moxfieldDeckUrl(source.id),
 	});
 	link.setAttribute("target", "_blank");
 	link.setAttribute("rel", "noopener");
 
-	const retryBtn = meta.createEl("button", { cls: "mtg-decklist-remote-error-retry", text: "Retry" });
+	const retryBtn = meta.createEl("button", { cls: "mtg-decklist-remote-error-retry", text: t(language, "Retry") });
 	retryBtn.addEventListener("click", () => onRetry());
 }
 

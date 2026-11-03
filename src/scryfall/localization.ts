@@ -13,9 +13,31 @@ export function localizedPrintingKey(
 ): string | null {
 	if (language === "en" || !card.oracle_id) return null;
 	if (preferExactPrinting && card.set && card.collector_number) {
-		return `localized:${language}:set:${card.set.toLowerCase()}:${card.collector_number.toLowerCase()}`;
+		return `localized:v2:${language}:set:${card.set.toLowerCase()}:${card.collector_number.toLowerCase()}`;
 	}
-	return `localized:${language}:oracle:${card.oracle_id}`;
+	return `localized:v2:${language}:oracle:${card.oracle_id}`;
+}
+
+/**
+ * Scryfall may list recent translated printings with low-resolution scans.
+ * Prefer a true high-resolution scan over release date for unpinned cards.
+ * The original array order (newest first) breaks ties.
+ */
+export function bestLocalizedPrint(cards: ScryfallCard[], language: CardLanguage, oracleId: string): ScryfallCard | null {
+	let best: ScryfallCard | null = null;
+	let score = -1;
+	for (const card of cards) {
+		if (card.lang !== language || card.oracle_id !== oracleId) continue;
+		const quality =
+			card.image_status === "highres_scan" ? 3
+				: card.highres_image ? 2
+					: card.image_status === "lowres" ? 1 : 0;
+		if (!best || quality > score) {
+			best = card;
+			score = quality;
+		}
+	}
+	return best;
 }
 
 export function localizedDisplayName(card: ScryfallCard, translated?: ScryfallCard | null): string {

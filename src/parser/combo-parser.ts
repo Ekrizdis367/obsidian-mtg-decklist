@@ -21,6 +21,18 @@ const LINE_LIST_KEYS = new Set([
 ]);
 
 const KEY_ALIASES: Record<string, string> = {
+	nom: "name",
+	resultat: "result",
+	main: "hand",
+	"champ-de-bataille": "battlefield",
+	prerequis: "prerequisites",
+	etapes: "steps",
+	interrompre: "interact",
+	boucle: "loop",
+	sortie: "break",
+	variante: "line",
+	variantes: "line",
+	infini: "infinite",
 	prereqs: "prerequisites",
 	prereq: "prerequisites",
 	requires: "prerequisites",
@@ -145,7 +157,7 @@ export function parseCombo(source: string): ParsedCombo {
 			continue;
 		}
 
-		const m = raw.match(/^([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*)$/);
+		const m = raw.match(/^([\p{L}][\p{L}0-9_-]*)\s*:\s*(.*)$/u);
 		if (!m) {
 			if (currentKey === "notes" || currentKey === "result") {
 				if (currentKey === "result") {
@@ -160,7 +172,7 @@ export function parseCombo(source: string): ParsedCombo {
 			continue;
 		}
 
-		const rawKey = (m[1] ?? "").toLowerCase();
+		const rawKey = (m[1] ?? "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 		const key = KEY_ALIASES[rawKey] ?? rawKey;
 		const value = (m[2] ?? "").trim();
 
