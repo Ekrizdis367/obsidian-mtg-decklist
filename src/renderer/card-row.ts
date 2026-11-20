@@ -8,6 +8,7 @@ import { legalityNote } from "./legality";
 import type { ResolvedEntry } from "./grouping";
 import { resolveCardTag } from "../utils/card-tags";
 import { useTouchCardUi } from "../utils/touch-ui";
+import { displayCardName } from "../utils/display-name";
 
 const BASIC_LAND_NAMES = new Set([
 	"plains",
@@ -53,11 +54,17 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 		row.createSpan({ cls: "mtg-card-qty", text: `${entry.quantity}` });
 	}
 
+	// Display the name exactly as written in the decklist (it may be localized),
+	// except when only one face of a multi-faced card was entered — then the full
+	// "Front // Back" name in the entered language. Scryfall's card.name is always
+	// the English name; the link below still points to the localized printing via
+	// card.scryfall_uri.
+	const displayName = displayCardName(entry.name, card);
 	const nameEl = row.createSpan({ cls: "mtg-card-name" });
 	if (card?.scryfall_uri) {
 		if (useTouchCardUi()) {
 			const link = nameEl.createEl("a", {
-				text: card.name,
+				text: displayName,
 				href: "#",
 				cls: "mtg-card-link",
 			});
@@ -69,18 +76,16 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 			});
 		} else {
 			const link = nameEl.createEl("a", {
-				text: card.name,
+				text: displayName,
 				href: card.scryfall_uri,
 				cls: "mtg-card-link",
 			});
 			link.setAttribute("target", "_blank");
 			link.setAttribute("rel", "noopener");
 		}
-	} else if (card) {
-		nameEl.setText(card.name);
 	} else {
-		nameEl.setText(entry.name);
-		nameEl.addClass("mtg-card-pending");
+		nameEl.setText(displayName);
+		if (!card) nameEl.addClass("mtg-card-pending");
 	}
 
 	if (showInlineCount) {
