@@ -2,6 +2,7 @@ import { useTouchCardUi } from "../utils/touch-ui";
 import type MtgDecklistPlugin from "../main";
 import { renderManaCost } from "../ui/mana-symbols";
 import { debounce } from "../utils/debounce";
+import { localizedCardName } from "../utils/display-name";
 import type { ScryfallCard } from "../scryfall/types";
 
 const MANA_TOKEN_RE = /\{([A-Za-z0-9/]+)\}/g;
@@ -143,7 +144,8 @@ export function attachCardBehavior(el: HTMLAnchorElement, cardName: string, plug
 			el.setAttribute("target", "_blank");
 			delete el.dataset.scryfallUri;
 		}
-		el.setAttribute("title", card.type_line ? `${card.name} — ${card.type_line}` : card.name);
+		const displayName = localizedCardName(card);
+		el.setAttribute("title", card.type_line ? `${displayName} — ${card.type_line}` : displayName);
 	};
 
 	let cached = plugin.client.getCached(cardName) ?? null;

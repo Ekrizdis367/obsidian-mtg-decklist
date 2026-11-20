@@ -10,6 +10,7 @@ import { colorComboName } from "../utils/color-names";
 import { moxfieldDeckUrl } from "../moxfield/url";
 import { archidektDeckUrl } from "../archidekt/url";
 import { printingKey } from "../scryfall/cache";
+import { displayCardName } from "../utils/display-name";
 import type { ScryfallCard } from "../scryfall/types";
 import type { LegalityFormat } from "../settings";
 
@@ -197,7 +198,7 @@ function collectCommanderCards(sections: ResolvedSection[]): ScryfallCard[] {
 function collectCommanderNames(sections: ResolvedSection[]): string[] {
 	const commanderSection = sections.find((s) => s.kind === "commander");
 	if (!commanderSection) return [];
-	return commanderSection.entries.map(({ entry, card }) => card?.name ?? entry.name);
+	return commanderSection.entries.map(({ entry, card }) => displayCardName(entry.name, card));
 }
 
 function unionColorIdentity(cards: ScryfallCard[]): string[] {

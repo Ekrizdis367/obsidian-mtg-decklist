@@ -9,6 +9,8 @@ export interface ScryfallImageUris {
 
 export interface ScryfallCardFace {
 	name?: string;
+	/** Localized face name (present when the printing's lang is not "en"). */
+	printed_name?: string;
 	mana_cost?: string;
 	type_line?: string;
 	oracle_text?: string;
@@ -42,6 +44,9 @@ export interface ScryfallCard {
 	id: string;
 	oracle_id?: string;
 	name: string;
+	/** Localized name of this printing (present when lang is not "en"). */
+	printed_name?: string;
+	lang?: string;
 	mana_cost?: string;
 	cmc?: number;
 	type_line?: string;
