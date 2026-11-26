@@ -118,7 +118,12 @@ export class ScryfallClient {
 			if (!card || !card.name) return null;
 
 			this.cache.set(name, card);
-			this.cache.set(card.name, card);
+			// card.name is always the English Oracle name. Only an English printing
+			// may be cached under it, so resolving a foreign name never shadows later
+			// English lookups (same reason doFetchBySet stays off the name key).
+			if (card.lang === "en") {
+				this.cache.set(card.name, card);
+			}
 			return card;
 		} catch (err) {
 			console.warn("[mtg-decklist] Scryfall request failed", name, err);

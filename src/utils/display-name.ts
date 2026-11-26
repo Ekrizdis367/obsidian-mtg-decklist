@@ -1,13 +1,16 @@
-import { normalizeCardName } from "../scryfall/cache";
 import type { ScryfallCard } from "../scryfall/types";
 
 /**
- * Full card name in the printing's own language. Single-faced cards have a
- * top-level printed_name; multi-faced cards (MDFC, split, adventure) only
- * carry per-face printed_name values, so join them with " // " like
- * Scryfall's English card.name does.
+ * Card name as printed on the resolved printing. English printings carry no
+ * printed_name, so they get Scryfall's English name. A non-English printing has
+ * a top-level printed_name when single-faced; multi-faced cards (MDFC, split,
+ * adventure) only carry per-face printed_name values, so those are joined with
+ * " // " like Scryfall's English card.name.
  */
 export function localizedCardName(card: ScryfallCard): string {
+	// English printing: Scryfall's canonical name, which also corrects a
+	// misspelling in the source list, exactly as rows showed before this feature.
+	if (card.lang === "en") return card.name;
 	if (card.printed_name) return card.printed_name;
 	const faces = (card.card_faces ?? [])
 		.map((f) => f.printed_name ?? f.name)
@@ -16,24 +19,9 @@ export function localizedCardName(card: ScryfallCard): string {
 }
 
 /**
- * Display name for a decklist entry: the name exactly as typed, except when
- * the entry names only one face of a multi-faced card — then the full
- * "Front // Back" name in the language the card was entered in.
+ * Name shown for a decklist entry: the typed text while the card is still
+ * unresolved, otherwise the name printed on the resolved printing.
  */
 export function displayCardName(entryName: string, card: ScryfallCard | null): string {
-	if (!card) return entryName;
-	const full = localizedCardName(card);
-	if (!full.includes(" // ")) return entryName;
-	const typed = normalizeCardName(entryName);
-	if (typed === normalizeCardName(full)) return entryName;
-	const faces = new Set<string>();
-	const candidates = [card.name, card.printed_name];
-	for (const face of card.card_faces ?? []) {
-		candidates.push(face.name, face.printed_name);
-	}
-	for (const name of candidates) {
-		if (!name) continue;
-		for (const part of name.split("//")) faces.add(normalizeCardName(part));
-	}
-	return faces.has(typed) ? full : entryName;
+	return card ? localizedCardName(card) : entryName;
 }

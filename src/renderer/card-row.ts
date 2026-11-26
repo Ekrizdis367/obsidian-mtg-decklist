@@ -54,11 +54,9 @@ export function renderCardRow(parent: HTMLElement, resolved: ResolvedEntry, opts
 		row.createSpan({ cls: "mtg-card-qty", text: `${entry.quantity}` });
 	}
 
-	// Display the name exactly as written in the decklist (it may be localized),
-	// except when only one face of a multi-faced card was entered — then the full
-	// "Front // Back" name in the entered language. Scryfall's card.name is always
-	// the English name; the link below still points to the localized printing via
-	// card.scryfall_uri.
+	// The name printed on the resolved printing: Scryfall's English card.name for
+	// an English printing, printed_name for a foreign one. The link below points
+	// to that printing via card.scryfall_uri.
 	const displayName = displayCardName(entry.name, card);
 	const nameEl = row.createSpan({ cls: "mtg-card-name" });
 	if (card?.scryfall_uri) {
