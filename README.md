@@ -24,6 +24,7 @@ Inline mana symbols and hoverable card links in a regular note:
 - **Auto grouping** – Group cards automatically by type (Commander, Creature, Instant, Sorcery, Artifact, Enchantment, Planeswalker, Land, …) or honour your own `# Section` headers.
 - **Sorting** – Sort within each section by name, by CMC then name, or keep the order you typed.
 - **Card previews** – Hover (desktop) or tap (mobile) any card name for a full Scryfall image preview. On mobile, inline card taps show the preview only; use **Open on Scryfall** in the overlay to open the site (avoids the browser stealing the tap).
+- **Printed names** – A card entered under its printed foreign name (`4 Foudre`, `4 Удар Молнии`) is shown with that name, and the preview uses that printing. English names still show the official English card, so `Lightnin Bolt` displays as `Lightning Bolt`. Some foreign names do not resolve: `Plaine` matches English Plains, and `Île` or `Forêt` stay unmatched.
 - **Color identity & legality warnings** – Inline icons flag cards that break the deck's color identity or are not legal in your chosen format.
 - **Card role tags** – Manually tag cards with roles like `#ramp`, `#draw`, `#removal`, `#boardwipe`, `#counterspell`, `#wincon` (and your own custom tags) — each shows up as a small coloured icon next to the card name.
 - **Specific printings** – Pin a card to one exact printing with `(SET) NUMBER` syntax (e.g. `1 Ancient Den (MRD) 278`), the same style Moxfield and MTGO exports use — the card and its image preview use that printing.
